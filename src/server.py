@@ -30,7 +30,7 @@ def agent_portrayal(agent):
 
     return {}
 
-with open(os.path.join(os.getcwd(), 'resources', 'map1.txt')) as f:
+with open(os.path.join(os.getcwd(), '../resources', 'map1.txt')) as f:
     world = [list(c) for c in f.read().split('\n')[::-1] if c]
 
 width = len(world[0])

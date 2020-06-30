@@ -1,0 +1,6 @@
+X = ostacolo
+O = percorso libero
+S = scaffale
+C = cassa
+E = entrata
+U = uscita

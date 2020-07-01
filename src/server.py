@@ -30,18 +30,17 @@ def agent_portrayal(agent):
 
     if isinstance(agent, CustomerAgent):
         return {
-            "Shape": "rect",
+            "Shape": "circle",
             "Filled": "true",
             "Layer": 0,
-            "w": 0.95,
-            "h": 0.95,
+            "r": 0.8,
             "Color": "blue"
         }
 
     return {}
 
-
 with open(os.path.join(os.getcwd(), '../resources', 'map1.txt')) as f:
+    capacity = int(f.readline())
     world = [list(c) for c in f.read().split('\n')[::-1] if c]
 
 width = len(world[0])
@@ -51,6 +50,6 @@ grid = CanvasGrid(agent_portrayal, width, height, width*40, height*40)
 server = ModularServer(SupermarketModel,
                        [grid],
                        "Supermarket Model",
-                       {"N": 10, "world": world, "width": width, "height": height})
+                       {"N": capacity, "world": world, "width": width, "height": height})
 server.port = 8521  # The default
 server.launch()

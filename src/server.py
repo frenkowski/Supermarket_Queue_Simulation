@@ -1,10 +1,10 @@
 import os
+import numpy as np
 
 from mesa.visualization.modules import CanvasGrid
 from mesa.visualization.ModularVisualization import ModularServer
-import numpy as np
 
-from model import SupermarketModel, ObstacleAgent, CashierAgent, CustomerAgent
+from model import *
 
 
 def agent_portrayal(agent):
@@ -39,7 +39,8 @@ def agent_portrayal(agent):
 
     return {}
 
-with open(os.path.join(os.getcwd(), '../resources', 'map1.txt')) as f:
+
+with open(os.path.join(os.getcwd(), '../resources', 'map2.txt')) as f:
     capacity = int(f.readline())
     world = [list(c) for c in f.read().split('\n')[::-1] if c]
 

@@ -1,8 +1,8 @@
 from mesa import Agent, Model
 from mesa.time import RandomActivation
 from mesa.space import SingleGrid
-
 import numpy as np
+from scipy.spatial import distance
 
 
 class ObstacleAgent(Agent):
@@ -37,12 +37,15 @@ class CustomerAgent(Agent):
 class SupermarketModel(Model):
     def __init__(self, N, world, width, height):
         self.world = world
+        self.width = width
+        self.height = height
         self.grid = SingleGrid(width, height, True)
         self.schedule = RandomActivation(self)
         self.capacity = N
         self.running = True
 
-        self.entry_point = list()
+        self.cash_registers = []
+        self.entry_points = list()
         self.agents_count = 0
 
         # Populate grid from world
@@ -52,34 +55,52 @@ class SupermarketModel(Model):
                     self.grid[j][i] = ObstacleAgent(str(i)+str(j), self)
                 if (cell in ['1', '2', '3', '4', '5']):
                     self.grid[j][i] = CashierAgent(str(i)+str(j), self)
+                    self.cash_registers.append((j, i, cell))
                 if (cell in ['A', 'B', 'C', 'D', 'E']):
-                    self.entry_point.append((j, i))
-
-        # # Create agents
-        # for i in range(self.num_agents):
-        #     a = CustomerAgent(i, self)
-        #     self.schedule.add(a)
-        #     # Add the agent to a random grid cell
-        #     x = self.random.randrange(self.grid.width)
-        #     y = self.random.randrange(self.grid.height)
-        #     while not self.grid.is_cell_empty((x, y)):
-        #         x = self.random.randrange(self.grid.width)
-        #         y = self.random.randrange(self.grid.height)
-        #     self.grid.place_agent(a, (x, y))
+                    self.entry_points.append((j, i, cell))
 
         worldMatrix = np.matrix(self.world)
-        worldMatrix[worldMatrix == 'A'] = np.inf
-        worldMatrix[worldMatrix == '1'] = 0
-        print(worldMatrix)
+        self.distanceMatrix = np.zeros((self.height, self.width))
+        self.distanceMatrix[worldMatrix == 'X'] = np.inf
+        # self.distanceMatrix[worldMatrix == 'A'] = 1
+        # self.distanceMatrix[worldMatrix == 'B'] = 1
+        # self.distanceMatrix[worldMatrix == 'C'] = 1
+        # self.distanceMatrix[worldMatrix == 'D'] = 1
+        # self.distanceMatrix[worldMatrix == 'E'] = 1
+        self.distanceMatrix[worldMatrix == '1'] = np.inf
+        self.distanceMatrix[worldMatrix == '2'] = np.inf
+        self.distanceMatrix[worldMatrix == '3'] = np.inf
+        self.distanceMatrix[worldMatrix == '4'] = np.inf
+        self.distanceMatrix[worldMatrix == '5'] = np.inf
+        print(self.distanceMatrix)
+
+        floor_fields = {}
+        for dest_y, dest_x, dest_label in self.cash_registers:
+            floor_fields[dest_label] = {}
+            for source_y, source_x, source_label in self.entry_points:
+                floor_fields[dest_label][source_label] = self.calculate_floor_field((dest_x, dest_y - 1))
+
+
+    def calculate_floor_field(self, target):
+        field = self.distanceMatrix.copy()
+
+        for x1 in range(len(field)):
+            for y1 in range(len(field[x1])):
+                if not np.isinf(field[x1,y1]):
+                    field[x1, y1] = distance.euclidean([x1,y1], target)
+
+        return field
 
     def step(self):
         print("STEP - " + str(len(self.schedule.agents)))
         if (len(self.schedule.agents) < self.capacity):
             coin = self.random.randint(0, 4)
-            if(self.grid.is_cell_empty(self.entry_point[coin])):
+
+            x, y, _ = self.entry_points[coin]
+            if (self.grid.is_cell_empty((x, y))):
                 a = self.createAgent()
                 self.schedule.add(a)
-                self.grid.place_agent(a, self.entry_point[coin])
+                self.grid.place_agent(a, (x, y))
 
         self.schedule.step()
 

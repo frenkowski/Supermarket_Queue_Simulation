@@ -35,25 +35,26 @@ class CustomerAgent(Agent):
         print("Hi, I am agent " + str(self.unique_id) +
               " - TIME: " + str(self.permanence_time) +
               " - POSITION: " + str(self.pos) + ".")
-        if(self.spawn):
+        if self.spawn:
             self.spawn = False
             return
+
         self.model.grid.move_agent(self, self.decide_destination())
 
     def decide_destination(self):
         possible_steps = self.model.grid.get_neighborhood(
             self.pos,
             moore=True,
-            include_center=True)
-        print(possible_steps)
+            include_center=True
+        )
 
-        min_cell = {}
-        for key, value in self.model.floor_fields.items():
-            #print(possible_steps[np.argmin(np.take(value, possible_steps))])
-            min_cell[key] = possible_steps[np.argmin(
-                np.take(value, possible_steps))]
-        print(min(min_cell.values()))
-        return min(min_cell.values())
+        destinations = {}
+        for destination, floor_field in self.model.floor_fields.items():
+            candidates = [ floor_field[y,x] for x,y in possible_steps ]
+            x,y = possible_steps[np.argmin(candidates)]
+            destinations[x,y] = floor_field[y,x]
+
+        return min(destinations, key=destinations.get)
 
 
 class SupermarketModel(Model):
@@ -81,10 +82,9 @@ class SupermarketModel(Model):
                 if (cell in ['A', 'B', 'C', 'D', 'E']):
                     self.entry_points.append((j, i, cell))
 
-        worldMatrix = np.matrix(self.world[::-1])
+        worldMatrix = np.matrix(self.world)
         self.distanceMatrix = np.zeros((self.height, self.width))
         self.distanceMatrix[worldMatrix == 'X'] = np.inf
-
         self.distanceMatrix[worldMatrix == '1'] = np.inf
         self.distanceMatrix[worldMatrix == '2'] = np.inf
         self.distanceMatrix[worldMatrix == '3'] = np.inf
@@ -101,9 +101,7 @@ class SupermarketModel(Model):
 
         self.floor_fields = {}
         for dest_y, dest_x, dest_label in self.cash_registers:
-            self.floor_fields[dest_label] = self.calculate_floor_field(
-                (dest_x, dest_y - 1))
-        print(self.floor_fields['1'])
+            self.floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
 
     def step(self):
         print("STEP - " + str(len(self.schedule.agents)))

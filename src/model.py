@@ -76,9 +76,7 @@ class SupermarketModel(Model):
 
         floor_fields = {}
         for dest_y, dest_x, dest_label in self.cash_registers:
-            floor_fields[dest_label] = {}
-            for source_y, source_x, source_label in self.entry_points:
-                floor_fields[dest_label][source_label] = self.calculate_floor_field((dest_x, dest_y - 1))
+            floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
 
 
     def calculate_floor_field(self, target):

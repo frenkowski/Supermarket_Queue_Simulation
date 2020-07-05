@@ -48,13 +48,19 @@ class CustomerAgent(Agent):
             include_center=True
         )
 
-        destinations = {}
+        destinations = []
         for destination, floor_field in self.model.floor_fields.items():
             candidates = [ floor_field[y,x] for x,y in possible_steps ]
-            x,y = possible_steps[np.argmin(candidates)]
-            destinations[x,y] = floor_field[y,x]
 
-        return min(destinations, key=destinations.get)
+            x, y = possible_steps[np.argmin(candidates)]
+            destinations.append({
+                'destination': destination,
+                'move': (x, y),
+                'cost': floor_field[y,x]
+            })
+
+        selected_move = min(destinations, key=lambda x: x['cost'])
+        return selected_move['move']
 
 
 class SupermarketModel(Model):

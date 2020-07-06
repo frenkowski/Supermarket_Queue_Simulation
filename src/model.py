@@ -45,6 +45,10 @@ class CustomerAgent(Agent):
                 self.phase = AgentPhase.IN_QUEUE
 
         elif self.phase == AgentPhase.IN_QUEUE:
+            dest_x, dest_y  = self.decide_destination()
+            if self.model.grid[dest_x][dest_y] != None:
+                return
+
             self.model.grid.move_agent(self, self.decide_destination())
             x, y = self.pos
             if (x + 1, y) in self.model.cash_registers.values():
@@ -89,7 +93,18 @@ class CustomerAgent(Agent):
             })
 
         selected_move = min(destinations, key=lambda x: x['cost'])
-        return selected_move['move']
+
+        old_destination = self.objective
+        new_destination = selected_move['destination']
+
+        if not self.objective:
+            self.model.queues[new_destination].add(self.unique_id)
+
+        if old_destination and new_destination != old_destination:
+            self.model.queues[old_destination].remove(self.unique_id)
+
+        self.objective = new_destination
+        return new_destination
 
     def is_cash_register_open(self, destination):
         cash_register_y, cash_register_x = self.model.cash_registers[destination]
@@ -105,6 +120,7 @@ class SupermarketModel(Model):
         self.capacity = N
         self.running = True
 
+        self.queues = {}
         self.cash_registers = {}
         self.entry_points = list()
         self.agents_count = 0
@@ -117,6 +133,7 @@ class SupermarketModel(Model):
                 if (cell in ['1', '2', '3', '4', '5']):
                     self.grid[j][i] = CashierAgent(str(i)+str(j), self)
                     self.cash_registers[cell] = (j, i)
+                    self.queues[cell] = set()
                 if (cell in ['A', 'B', 'C', 'D', 'E']):
                     self.entry_points.append((j, i, cell))
 

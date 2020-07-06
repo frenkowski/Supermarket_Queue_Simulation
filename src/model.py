@@ -4,6 +4,7 @@ from mesa.space import SingleGrid
 
 import numpy as np
 from scipy.spatial import distance
+from enum import Enum
 
 
 class ObstacleAgent(Agent):
@@ -22,21 +23,26 @@ class CashierAgent(Agent):
     def step(self):
         pass
 
-
 class CustomerAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
-        self.permanence_time = self.random.randint(0, 4)
-        self.spawn = True
+        self.n_prods = self.random.randint(1, 51)
+        self.phase = AgentPhase.SHOPPING
 
     def step(self):
         # The agent's step will go here.
         # For demonstration purposes we will print the agent's unique_id
         print("Hi, I am agent " + str(self.unique_id) +
-              " - TIME: " + str(self.permanence_time) +
+              " - PRODS: " + str(self.n_prods) +
               " - POSITION: " + str(self.pos) + ".")
-        if self.spawn:
-            self.spawn = False
+
+        if self.n_prods > 0:
+            self.n_prods -= 1
+            return
+
+        if self.phase == AgentPhase.SHOPPING:
+            if self.decide_queue():
+                self.phase = AgentPhase.IN_QUEUE
             return
 
         self.model.grid.move_agent(self, self.decide_destination())
@@ -61,6 +67,18 @@ class CustomerAgent(Agent):
 
         selected_move = min(destinations, key=lambda x: x['cost'])
         return selected_move['move']
+
+    def decide_queue(self):
+        coin = self.random.randint(0, 4)
+
+        x, y, _ = self.model.entry_points[coin]
+        if (self.model.grid.is_cell_empty((x, y))):
+            self.model.grid.place_agent(self, (x, y))
+            return True
+        return False
+
+    def get_phase(self):
+        return self.phase
 
 
 class SupermarketModel(Model):
@@ -112,17 +130,11 @@ class SupermarketModel(Model):
     def step(self):
         print("STEP - " + str(len(self.schedule.agents)))
         if (len(self.schedule.agents) < self.capacity):
-            coin = self.random.randint(0, 4)
-
-            x, y, _ = self.entry_points[coin]
-            if (self.grid.is_cell_empty((x, y))):
-                a = self.createAgent()
-                self.schedule.add(a)
-                self.grid.place_agent(a, (x, y))
+            self.schedule.add(self.create_agent())
 
         self.schedule.step()
 
-    def createAgent(self):
+    def create_agent(self):
         a = CustomerAgent(self.agents_count, self)
         self.agents_count += 1
         return a
@@ -136,3 +148,8 @@ class SupermarketModel(Model):
                     field[x1, y1] = distance.euclidean([x1, y1], target)
 
         return field
+
+class AgentPhase(Enum):
+    SHOPPING = 0
+    IN_QUEUE = 1
+    PAYING = 2

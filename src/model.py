@@ -1,5 +1,5 @@
 from mesa import Agent, Model
-from mesa.time import RandomActivation
+from mesa.time import BaseScheduler
 from mesa.space import SingleGrid
 
 import numpy as np
@@ -18,7 +18,7 @@ class ObstacleAgent(Agent):
 class CashierAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
-        self.open = self.random.random() > 0.5
+        self.open = self.random.random() > 0.2
 
     def step(self):
         pass
@@ -27,21 +27,36 @@ class CashierAgent(Agent):
 class CustomerAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
-        self.n_prods = self.random.randint(1, 51)
+        self.n_prod = self.random.randint(1, 51)
+
+        self.shopping_time = Counter(self.n_prod)
+        self.paying_time = Counter(self.n_prod)
         self.phase = AgentPhase.SHOPPING
 
     def step(self):
         print("Hi, I am agent " + str(self.unique_id) +
-              " - PRODS: " + str(self.n_prods) +
+              " - PRODS: " + str(self.shopping_time) +
               " - POSITION: " + str(self.pos) + ".")
 
         if self.phase == AgentPhase.SHOPPING:
-            if self.n_prods > 0:
-                self.n_prods -= 1
+            if not self.shopping_time.is_expired():
+                self.shopping_time.decrement()
             elif self.decide_queue():
                 self.phase = AgentPhase.IN_QUEUE
+
         elif self.phase == AgentPhase.IN_QUEUE:
             self.model.grid.move_agent(self, self.decide_destination())
+            x, y = self.pos
+            if (x + 1, y) in self.model.cash_registers.values():
+                self.phase = AgentPhase.PAYING
+
+        elif self.phase == AgentPhase.PAYING:
+            if not self.paying_time.is_expired():
+                self.paying_time.decrement()
+            else:
+                self.model.grid.remove_agent(self)
+                self.model.schedule.remove(self)
+
 
     def decide_queue(self):
         coin = self.random.randint(0, 4)
@@ -50,6 +65,7 @@ class CustomerAgent(Agent):
         if (self.model.grid.is_cell_empty((x, y))):
             self.model.grid.place_agent(self, (x, y))
             return True
+
         return False
 
     def decide_destination(self):
@@ -86,7 +102,7 @@ class SupermarketModel(Model):
         self.width = width
         self.height = height
         self.grid = SingleGrid(width, height, True)
-        self.schedule = RandomActivation(self)
+        self.schedule = BaseScheduler(self)
         self.capacity = N
         self.running = True
 
@@ -155,3 +171,15 @@ class AgentPhase(Enum):
     SHOPPING = 0
     IN_QUEUE = 1
     PAYING = 2
+
+
+class Counter():
+    def __init__(self, start):
+        self.count = start
+
+    def is_expired(self):
+        return self.count == 0
+
+    def decrement(self):
+        self.count -= 1
+        return self.count

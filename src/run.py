@@ -17,7 +17,7 @@ def agent_portrayal(agent):
             "Layer": 0,
             "w": 0.95,
             "h": 0.95,
-            "Color": "black"
+            "Color": "black",
         }
 
     if isinstance(agent, CashierAgent):
@@ -27,7 +27,7 @@ def agent_portrayal(agent):
             "Layer": 0,
             "w": 0.95,
             "h": 0.95,
-            "Color": "green" if agent.open else "red"
+            "Color": "green" if agent.open else "red",
         }
 
     if isinstance(agent, CustomerAgent):
@@ -36,7 +36,9 @@ def agent_portrayal(agent):
             "Filled": "true",
             "Layer": 0,
             "r": 0.8,
-            "Color": "blue"
+            "Color": "blue",
+            "text": agent.unique_id,
+            "text_color": "white"
         }
 
     return {}

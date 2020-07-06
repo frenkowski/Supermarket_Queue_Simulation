@@ -41,6 +41,7 @@ def agent_portrayal(agent):
 
     return {}
 
+
 with open(os.path.join(os.getcwd(), '../resources', 'map2.txt')) as f:
     capacity = int(f.readline())
     world = [list(c) for c in f.read().split('\n') if c]

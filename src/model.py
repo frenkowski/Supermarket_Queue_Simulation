@@ -23,6 +23,7 @@ class CashierAgent(Agent):
     def step(self):
         pass
 
+
 class CustomerAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
@@ -30,43 +31,17 @@ class CustomerAgent(Agent):
         self.phase = AgentPhase.SHOPPING
 
     def step(self):
-        # The agent's step will go here.
-        # For demonstration purposes we will print the agent's unique_id
         print("Hi, I am agent " + str(self.unique_id) +
               " - PRODS: " + str(self.n_prods) +
               " - POSITION: " + str(self.pos) + ".")
 
-        if self.n_prods > 0:
-            self.n_prods -= 1
-            return
-
         if self.phase == AgentPhase.SHOPPING:
-            if self.decide_queue():
+            if self.n_prods > 0:
+                self.n_prods -= 1
+            elif self.decide_queue():
                 self.phase = AgentPhase.IN_QUEUE
-            return
-
-        self.model.grid.move_agent(self, self.decide_destination())
-
-    def decide_destination(self):
-        possible_steps = self.model.grid.get_neighborhood(
-            self.pos,
-            moore=True,
-            include_center=True
-        )
-
-        destinations = []
-        for destination, floor_field in self.model.floor_fields.items():
-            candidates = [ floor_field[y,x] for x,y in possible_steps ]
-
-            x, y = possible_steps[np.argmin(candidates)]
-            destinations.append({
-                'destination': destination,
-                'move': (x, y),
-                'cost': floor_field[y,x]
-            })
-
-        selected_move = min(destinations, key=lambda x: x['cost'])
-        return selected_move['move']
+        elif self.phase == AgentPhase.IN_QUEUE:
+            self.model.grid.move_agent(self, self.decide_destination())
 
     def decide_queue(self):
         coin = self.random.randint(0, 4)
@@ -77,8 +52,26 @@ class CustomerAgent(Agent):
             return True
         return False
 
-    def get_phase(self):
-        return self.phase
+    def decide_destination(self):
+        possible_steps = self.model.grid.get_neighborhood(
+            self.pos,
+            moore=True,
+            include_center=True
+        )
+
+        destinations = []
+        for destination, floor_field in self.model.floor_fields.items():
+            candidates = [floor_field[y, x] for x, y in possible_steps]
+
+            x, y = possible_steps[np.argmin(candidates)]
+            destinations.append({
+                'destination': destination,
+                'move': (x, y),
+                'cost': floor_field[y, x]
+            })
+
+        selected_move = min(destinations, key=lambda x: x['cost'])
+        return selected_move['move']
 
 
 class SupermarketModel(Model):
@@ -125,7 +118,8 @@ class SupermarketModel(Model):
 
         self.floor_fields = {}
         for dest_y, dest_x, dest_label in self.cash_registers:
-            self.floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
+            self.floor_fields[dest_label] = self.calculate_floor_field(
+                (dest_x, dest_y - 1))
 
     def step(self):
         print("STEP - " + str(len(self.schedule.agents)))
@@ -148,6 +142,7 @@ class SupermarketModel(Model):
                     field[x1, y1] = distance.euclidean([x1, y1], target)
 
         return field
+
 
 class AgentPhase(Enum):
     SHOPPING = 0

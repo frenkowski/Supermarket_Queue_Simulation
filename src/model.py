@@ -32,12 +32,9 @@ class CustomerAgent(Agent):
         self.shopping_time = Counter(self.n_prod)
         self.paying_time = Counter(self.n_prod)
         self.phase = AgentPhase.SHOPPING
+        self.objective = None
 
     def step(self):
-        print("Hi, I am agent " + str(self.unique_id) +
-              " - PRODS: " + str(self.shopping_time) +
-              " - POSITION: " + str(self.pos) + ".")
-
         if self.phase == AgentPhase.SHOPPING:
             if not self.shopping_time.is_expired():
                 self.shopping_time.decrement()
@@ -58,8 +55,13 @@ class CustomerAgent(Agent):
             if not self.paying_time.is_expired():
                 self.paying_time.decrement()
             else:
+                self.model.queues[self.objective].remove(self.unique_id)
+                self.objective = None
                 self.model.grid.remove_agent(self)
                 self.model.schedule.remove(self)
+                
+        self.print_agent_info()
+        print(self.model.queues)
 
     def decide_queue(self):
         coin = self.random.randint(0, 4)
@@ -102,13 +104,20 @@ class CustomerAgent(Agent):
 
         if old_destination and new_destination != old_destination:
             self.model.queues[old_destination].remove(self.unique_id)
+            self.model.queues[new_destination].add(self.unique_id)
 
         self.objective = new_destination
-        return new_destination
+        return selected_move['move']
 
     def is_cash_register_open(self, destination):
         cash_register_y, cash_register_x = self.model.cash_registers[destination]
         return self.model.grid[cash_register_y][cash_register_x].open
+    
+    def print_agent_info(self):
+        print("Hi, I am agent " + str(self.unique_id) +
+              " - PRODS: " + str(self.shopping_time) +
+              " - POSITION: " + str(self.pos) +
+              " - DESTINATION: " + str(self.objective) + ".")
 
 class SupermarketModel(Model):
     def __init__(self, N, world, width, height):

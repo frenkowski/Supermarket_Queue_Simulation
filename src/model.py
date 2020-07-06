@@ -177,6 +177,9 @@ class Counter():
     def __init__(self, start):
         self.count = start
 
+    def __repr__(self):
+        return str(self.count)
+
     def is_expired(self):
         return self.count == 0
 

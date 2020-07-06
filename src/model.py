@@ -57,12 +57,11 @@ class CustomerAgent(Agent):
                 self.model.grid.remove_agent(self)
                 self.model.schedule.remove(self)
 
-
     def decide_queue(self):
         coin = self.random.randint(0, 4)
 
         x, y, _ = self.model.entry_points[coin]
-        if (self.model.grid.is_cell_empty((x, y))):
+        if self.model.grid.is_cell_empty((x, y)):
             self.model.grid.place_agent(self, (x, y))
             return True
 
@@ -137,8 +136,7 @@ class SupermarketModel(Model):
         # self.distanceMatrix[worldMatrix == 'E'] = 1
 
         # print(self.distanceMatrix)
-
-        print(self.cash_registers)
+        # print(self.cash_registers)
 
         self.floor_fields = {}
         for dest_label, (dest_y, dest_x) in self.cash_registers.items():
@@ -146,15 +144,15 @@ class SupermarketModel(Model):
 
     def step(self):
         print("STEP - " + str(len(self.schedule.agents)))
-        if (len(self.schedule.agents) < self.capacity):
+        if len(self.schedule.agents) < self.capacity:
             self.schedule.add(self.create_agent())
 
         self.schedule.step()
 
     def create_agent(self):
-        a = CustomerAgent(self.agents_count, self)
+        agent = CustomerAgent(self.agents_count, self)
         self.agents_count += 1
-        return a
+        return agent
 
     def calculate_floor_field(self, target):
         field = self.distanceMatrix.copy()

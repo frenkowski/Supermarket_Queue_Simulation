@@ -44,8 +44,8 @@ def agent_portrayal(agent):
     return {}
 
 
-with open(os.path.join(os.getcwd(), '../resources', 'map2.txt')) as f:
-    capacity = int(f.readline())
+with open(os.path.join(os.getcwd(), '..', 'resources', 'map2.txt')) as f:
+    capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
     world = [list(c) for c in f.read().split('\n') if c]
 
 width = len(world[0])
@@ -56,7 +56,7 @@ server = CustomModularServer(
     SupermarketModel,
     [grid],
     "Supermarket Model",
-    {"N": capacity, "world": world, "width": width, "height": height}
+    {"N": capacity, "B": lane_switch_boundary, "world": world, "width": width, "height": height}
 )
 
 print(server.settings)

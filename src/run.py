@@ -51,7 +51,7 @@ with open(os.path.join(os.getcwd(), '..', 'resources', 'map2.txt')) as f:
 width = len(world[0])
 height = len(world)
 
-grid = CanvasGrid(agent_portrayal, width, height, width*40, height*40)
+grid = CanvasGrid(agent_portrayal, width, height, width*25, height*25)
 server = CustomModularServer(
     SupermarketModel,
     [grid],

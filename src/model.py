@@ -35,23 +35,35 @@ class CustomerAgent(Agent):
         self.objective = None
 
     def step(self):
-        # print('Phase AgentPhase.{}'.format(self.phase.name))
+        print('Phase AgentPhase.{}'.format(self.phase.name))
 
         if self.phase == AgentPhase.SHOPPING:
             if not self.shopping_time.is_expired():
                 self.shopping_time.decrement()
-            elif self.decide_queue():
-                self.phase = AgentPhase.IN_QUEUE
+            elif self.decide_spawn_point():
+                self.phase = AgentPhase.REACHING_QUEUE
 
-        elif self.phase == AgentPhase.IN_QUEUE:
+        elif self.phase == AgentPhase.REACHING_QUEUE:
+            # Pick destination cash_register
             dest_x, dest_y  = self.decide_destination()
             if self.model.grid[dest_x][dest_y] != None:
                 return
 
+            # Try to reach queue
             self.model.grid.move_agent(self, (dest_x, dest_y))
-            x, y = self.pos
+            if self.has_reached_cash_register_queue(self.pos):
+                self.model.queues[self.objective].add(self.unique_id)
+                self.phase = AgentPhase.IN_QUEUE
 
-            if (x + 1, y) in self.model.cash_registers.values():
+        elif self.phase == AgentPhase.IN_QUEUE:
+            # Move vertically in queue
+            x, y = self.pos
+            if self.model.grid[x][y + 1] != None:
+                return
+
+            self.model.grid.move_agent(self, (x, y + 1))
+            # Use y+1 because we moved agent after reading position
+            if (x + 1, y + 1) in self.model.cash_registers.values():
                 self.phase = AgentPhase.PAYING
 
         elif self.phase == AgentPhase.PAYING:
@@ -66,7 +78,7 @@ class CustomerAgent(Agent):
         self.print_agent_info()
         print(self.model.queues)
 
-    def decide_queue(self):
+    def decide_spawn_point(self):
         coin = self.random.randint(0, 4)
 
         x, y, _ = self.model.entry_points[coin]
@@ -83,6 +95,25 @@ class CustomerAgent(Agent):
             include_center=True
         )
 
+        selected_move = self.find_best_move(possible_steps)
+        self.update_objective(selected_move['destination'])
+
+        obj_x, obj_y = self.model.cash_registers[self.objective]
+        queue_start_y = obj_y - len(self.model.queues[self.objective]) - 1
+        obj_x -= 1
+        x, y = self.pos
+        x_direction = -1 if x > obj_x else 1
+        y_direction = -1 if y > queue_start_y else 1
+
+        # if x != obj_x and y != queue_start_y:
+        #     return (x + x_direction, y + y_direction)
+
+        if x != obj_x:
+            return (x + x_direction, y)
+
+        return (x, y + y_direction)
+
+    def find_best_move(self, possible_steps):
         destinations = []
         for destination, floor_field in self.model.floor_fields.items():
             if not self.is_cash_register_open(destination):
@@ -103,37 +134,26 @@ class CustomerAgent(Agent):
                 if self.objective == destination['destination']:
                     destination['cost'] -= 1
 
-        selected_move = min(destinations, key=lambda x: x['cost'])
-        self.update_objective(selected_move['destination'])
-
-        obj_x, obj_y = self.model.cash_registers[self.objective]
-        queue_start_y = obj_y - len(self.model.queues[self.objective])
-        obj_x -= 1
-        x, y = self.pos
-        x_direction = -1 if x > obj_x else 1
-        y_direction = -1 if y > queue_start_y else 1
-
-        if x != obj_x and y != queue_start_y:
-            return (x + x_direction, y + y_direction)
-
-        if x != obj_x:
-            return (x + x_direction, y)
-
-        return (x, y + 1)
+        return min(destinations, key=lambda x: x['cost'])
 
     def is_cash_register_open(self, destination):
         cash_register_y, cash_register_x = self.model.cash_registers[destination]
         return self.model.grid[cash_register_y][cash_register_x].open
 
+    def has_reached_cash_register_queue(self, pos):
+        cash_x, cash_y = self.model.cash_registers[self.objective]
+        return cash_x == (pos[0] + 1) and pos[1] == (cash_y - len(self.model.queues[self.objective])) - 1
+
     def update_objective(self, target):
         old_destination = self.objective
 
-        if not self.objective:
-            self.model.queues[target].add(self.unique_id)
+        # if not self.objective:
+        #     self.model.queues[target].add(self.unique_id)
 
         if old_destination and target != old_destination:
-            self.model.queues[old_destination].remove(self.unique_id)
-            self.model.queues[target].add(self.unique_id)
+            print ("changing destination", old_destination, target)
+            if self.unique_id in self.model.queues[old_destination]:
+                self.model.queues[old_destination].remove(self.unique_id)
 
         self.objective = target
 
@@ -183,7 +203,7 @@ class SupermarketModel(Model):
         self.distanceMatrix[worldMatrix == '5'] = np.inf
 
         self.floor_fields = {}
-        for dest_label, (dest_y, dest_x) in self.queue_entry_points.items():
+        for dest_label, (dest_y, dest_x) in self.cash_registers.items():
             self.floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
 
     def step(self):
@@ -211,8 +231,9 @@ class SupermarketModel(Model):
 
 class AgentPhase(Enum):
     SHOPPING = 0
-    IN_QUEUE = 1
-    PAYING = 2
+    REACHING_QUEUE = 1
+    IN_QUEUE = 2
+    PAYING = 3
 
 
 class Counter():

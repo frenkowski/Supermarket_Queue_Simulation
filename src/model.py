@@ -1,3 +1,5 @@
+import functools
+
 from mesa import Agent, Model
 from mesa.time import BaseScheduler
 from mesa.space import SingleGrid
@@ -27,10 +29,10 @@ class CashierAgent(Agent):
 class CustomerAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
-        self.n_prod = self.random.randint(1, 51)
+        self.n_prods = self.random.randint(1, 51)
 
-        self.shopping_time = Counter(self.n_prod)
-        self.paying_time = Counter(self.n_prod)
+        self.shopping_time = Counter(self.n_prods)
+        self.paying_time = Counter(self.n_prods)
         self.phase = AgentPhase.SHOPPING
         self.objective = None
 
@@ -99,9 +101,11 @@ class CustomerAgent(Agent):
 
         if self.pos[1] <= (self.model.height - self.model.lane_switch_boundary):
             for destination in destinations:
-                destination['cost'] += len(self.model.queues[destination['destination']])
-                if self.objective == destination['destination']:
-                    destination['cost'] -= 1
+                queue = self.model.queues[destination['destination']]
+                if queue:
+                    destination['cost'] += (functools.reduce(lambda a,b: self.model.schedule._agents[b].n_prods + a, queue) / 15)
+                    if self.objective == destination['destination']:
+                        destination['cost'] -= 1
 
         selected_move = min(destinations, key=lambda x: x['cost'])
         self.update_objective(selected_move['destination'])

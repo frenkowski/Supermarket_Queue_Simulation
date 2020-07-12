@@ -240,16 +240,20 @@ class CustomModularServer(tornado.web.Application):
     static_handler = (
         r"/static/(.*)",
         tornado.web.StaticFileHandler,
-        {"path": os.path.dirname(__file__) + "/templates"},
+        {"path": os.path.join(os.path.dirname(__file__), "..", "templates")},
     )
-    local_handler = (r"/local/(.*)", tornado.web.StaticFileHandler, {"path": ""})
+    local_handler = (
+        r"/local/(.*)",
+        tornado.web.StaticFileHandler,
+        {"path": os.path.join(os.path.dirname(__file__), "..", "public")},
+    )
 
     handlers = [page_handler, socket_handler, static_handler, local_handler]
 
     settings = {
         "debug": True,
         "autoreload": False,
-        "template_path": os.path.dirname(__file__) + "/templates",
+        "template_path": os.path.join(os.path.dirname(__file__), "..", "templates"),
     }
 
     EXCLUDE_LIST = ("width", "height")

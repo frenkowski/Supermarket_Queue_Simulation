@@ -79,6 +79,8 @@ var GridVisualization = function(width, height, gridWidth, gridHeight, context, 
                                 this.drawCircle(p.x, p.y, p.r, p.Color, p.stroke_color, p.Filled, p.text, p.text_color);
                         else if (p.Shape == "arrowHead")
                                 this.drawArrowHead(p.x, p.y, p.heading_x, p.heading_y, p.scale, p.Color, p.stroke_color, p.Filled, p.text, p.text_color);
+                        else if (p.Shape == "sprite")
+                                this.drawAnimatedSprite(p.sprite, p.x, p.y, p.heading_x, p.heading_y, p.scale, p.Color, p.stroke_color, p.Filled, p.text, p.text_color);
                         else
                                 this.drawCustomImage(p.Shape, p.x, p.y, p.scale, p.text, p.text_color)
                 }
@@ -268,6 +270,52 @@ var GridVisualization = function(width, height, gridWidth, gridHeight, context, 
                         context.fillText(text, cx, cy);
                 }
         };
+
+        this.drawAnimatedSprite = function (sprite, x, y, heading_x, heading_y, scale, colors, stroke_color, fill, text, text_color) {
+                console.log(heading_x, heading_y);
+                if (heading_x === 0 && heading_y === 1) {
+                        sprite += '-bottom';
+                }
+                else if (heading_x === 1 && heading_y === 0) {
+                        sprite += '-right';
+                }
+                else if (heading_x === 0 && heading_y === (-1)) {
+                        sprite += '-top';
+                }
+                else if (heading_x === (-1) && heading_y === 0) {
+                        sprite += '-left';
+                }
+
+                console.log(sprite);
+
+                var img = new Image();
+                img.src = "local/".concat(sprite).concat('.png');
+                if (scale === undefined) {
+                        var scale = 1
+                }
+                // Calculate coordinates so the image is always centered
+                var dWidth = cellWidth * scale;
+                var dHeight = cellHeight * scale;
+                var cx = x * cellWidth + cellWidth / 2 - dWidth / 2;
+                var cy = y * cellHeight + cellHeight / 2 - dHeight / 2;
+
+                // Coordinates for the text
+                var tx = (x + 0.5) * cellWidth;
+                var ty = (y + 0.5) * cellHeight;
+
+
+                img.onload = function() {
+                        context.drawImage(img, cx, cy, dWidth, dHeight);
+                        // This part draws the text on the image
+                        if (text !== undefined) {
+                                // ToDo: Fix fillStyle
+                                // context.fillStyle = text_color;
+                                context.textAlign = 'center';
+                                context.textBaseline= 'middle';
+                                context.fillText(text, tx, ty);
+                        }
+                }
+        }
 
         this.drawCustomImage = function (shape, x, y, scale, text, text_color_) {
                 var img = new Image();

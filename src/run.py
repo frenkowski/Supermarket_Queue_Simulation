@@ -1,22 +1,23 @@
 import os
 import numpy as np
 
-from mesa.visualization.modules import CanvasGrid
 from mesa.visualization.ModularVisualization import ModularServer
 import tornado
 
+from visualization.canvas_grid_with_terrain import CanvasGridWithTerrain
 from server import CustomModularServer
 from model import *
 
 
 def agent_portrayal(agent):
     if isinstance(agent, ObstacleAgent):
+        return {}
         return {
             "Shape": "rect",
             "Filled": "true",
-            "Layer": 0,
-            "w": 0.95,
-            "h": 0.95,
+            "Layer": 1,
+            "w": 1,
+            "h": 1,
             "Color": "black",
         }
 
@@ -24,34 +25,37 @@ def agent_portrayal(agent):
         return {
             "Shape": "rect",
             "Filled": "true",
-            "Layer": 0,
-            "w": 0.95,
-            "h": 0.95,
-            "Color": "green" if agent.open else "red",
+            "Layer": 1,
+            "w": 1,
+            "h": 1,
+            "Color": "#0000bc44" if agent.open else "#bc000044",
         }
 
     if isinstance(agent, CustomerAgent):
         return {
-            "Shape": "circle",
+            "Shape": "sprite",
+            "sprite": "images/characters/scout",
             "Filled": "true",
-            "Layer": 0,
+            "Layer": 4,
             "r": 0.8,
             "Color": "blue",
             "text": agent.unique_id,
             "text_color": "white"
         }
 
-    return {}
+    raise Exception('Undefined render function for agent \'{}\''.format(type(agent)))
 
 
-with open(os.path.join(os.getcwd(), '..', 'resources', 'map2.txt')) as f:
+with open(os.path.join(os.getcwd(), '..', 'resources', 'map3.txt')) as f:
     capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
+    terrain_map_name = f.readline().strip()
     world = [list(c) for c in f.read().split('\n') if c]
 
 width = len(world[0])
 height = len(world)
+tile_size = 24
 
-grid = CanvasGrid(agent_portrayal, width, height, width*25, height*25)
+grid = CanvasGridWithTerrain(agent_portrayal, width, height, terrain_map_name, width*tile_size, height*tile_size)
 server = CustomModularServer(
     SupermarketModel,
     [grid],

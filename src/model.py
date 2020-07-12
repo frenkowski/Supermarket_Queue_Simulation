@@ -1,10 +1,9 @@
+from enum import Enum
 from mesa import Agent, Model
 from mesa.time import BaseScheduler
 from mesa.space import SingleGrid
-
 import numpy as np
 from scipy.spatial import distance
-from enum import Enum
 
 
 class ObstacleAgent(Agent):
@@ -76,10 +75,10 @@ class CustomerAgent(Agent):
                 self.model.schedule.remove(self)
 
         self.print_agent_info()
-        print(self.model.queues)
+        # print(self.model.queues)
 
     def decide_spawn_point(self):
-        coin = self.random.randint(0, 4)
+        coin = self.random.randint(0, len(self.model.entry_points) - 1)
 
         x, y, _ = self.model.entry_points[coin]
         if self.model.grid.is_cell_empty((x, y)):
@@ -183,14 +182,14 @@ class SupermarketModel(Model):
         # Populate grid from world
         for y, row in enumerate(self.world):
             for x, cell in enumerate(row):
-                if (cell == 'X'):
+                if cell == 'X':
                     self.grid[x][y] = ObstacleAgent(str(y)+str(x), self)
-                if (cell in ['1', '2', '3', '4', '5']):
+                elif cell in ['1', '2', '3', '4', '5']:
                     self.grid[x][y] = CashierAgent(str(y)+str(x), self)
                     self.cash_registers[cell] = (x, y)
                     self.queues[cell] = set()
                     self.queue_entry_points[cell] = (x, y - self.lane_switch_boundary)
-                if (cell in ['A', 'B', 'C', 'D', 'E']):
+                elif cell in ['A', 'B', 'C', 'D', 'E']:
                     self.entry_points.append((x, y, cell))
 
         worldMatrix = np.matrix(self.world)
@@ -207,11 +206,11 @@ class SupermarketModel(Model):
             self.floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
 
     def step(self):
-        print("STEP - " + str(len(self.schedule.agents)))
         if len(self.schedule.agents) < self.capacity:
             self.schedule.add(self.create_agent())
 
         self.schedule.step()
+        print()
 
     def create_agent(self):
         agent = CustomerAgent(self.agents_count, self)

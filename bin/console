@@ -1,0 +1,94 @@
+import json
+import os
+from pathlib import Path
+
+import click
+import numpy as np
+
+
+@click.group()
+def map():
+    pass
+
+
+@map.command()
+@click.argument('input', type=click.Path(exists=True))
+@click.option('--output', help='Where to save generated files (defaults to the input path if not provided).')
+@click.option('--quiet/-q', is_flag=True, help='Suppress debug output during execution.')
+def convert(input, output, quiet):
+    map = Path(input).stem
+    if output is None:
+        output = os.path.join(Path(input).parent, '{}.txt'.format(map))
+
+    click.secho('Loading input file: {}'.format(input), fg='yellow')
+    with open(input) as f:
+        terrain = json.load(f)
+
+    w = terrain['width']
+    h = terrain['height']
+
+    click.secho('Converting terrain layers...', fg='yellow')
+    obstacle_array = terrain['layers'][0]['data']
+    for i, layer in enumerate(terrain['layers']):
+        obstacle_array = convert_layer(obstacle_array, w, h, layer['data'])
+
+    obstacle_map = [
+        '{} {}'.format(25, 6),
+        map,
+    ]
+
+    click.secho('Reshaping the grid...', fg='yellow')
+    while len(obstacle_array) > 0:
+        obstacle_map.append(''.join(obstacle_array[0:w]))
+        obstacle_array[0:w] = []
+
+    click.secho('Writing output map file: {}'.format(output), fg='yellow')
+    with open(output, 'w') as f:
+        f.write('\n'.join(obstacle_map))
+
+    click.secho('Conversion complete!', fg='green')
+
+
+cash_registers = range(1,10)
+def convert_layer(layer, width, height, tiles):
+    global cash_registers
+    for i in range(height):
+        for j in range(width):
+            tile = tiles[(i*width)+j] - 1
+            char = 'X'
+
+            # Skip previous layer correct cells
+            if is_valid_cell(layer[(i*width)+j]):
+                continue
+
+            if is_walkable(tile):
+                char = 'O'
+
+            if is_cash_register(tile):
+                char = str(cash_registers[0])
+                cash_registers = cash_registers[1:]
+
+            layer[(i*width)+j] = char
+
+    return layer
+
+
+def is_walkable(tile):
+    return tile not in [
+        333, 930, 931, 957, 958, 984, 985, 1031, 1032, 1058, 1059, 1003, 1030, 1008,
+        1009, 1010, 1035, 1036, 1037, 1062, 1064, 1038, 1039, 1065, 1066, 1011, 1012,
+        466, 411, 438, 465, 365, 366, 578, 605, 923, 927, 950, 951, 952, 953, 954, 955,
+        956, 972, 973, 974, 975, 976, 977, 978, 979, 980, 981, 982, 999, 1000, 1001, 1002,
+        1005
+    ]
+
+def is_valid_cell(cell):
+    return cell in [ 'X', 'C' ]
+
+
+def is_cash_register(cell):
+    return cell == 1004
+
+
+if __name__ == '__main__':
+    map()

@@ -271,8 +271,19 @@ var GridVisualization = function(width, height, gridWidth, gridHeight, context, 
                 }
         };
 
+        const image_pool = {}
+        function fetch_image(sprite, callback) {
+                if (! (sprite in image_pool)) {
+                        console.log('creatinge new', sprite)
+                        image_pool[sprite] = new Image();
+                        image_pool[sprite].src = 'local/' + sprite + '.png'
+                        image_pool[sprite].onload = callback
+                }
+
+                return image_pool[sprite]
+        }
+
         this.drawAnimatedSprite = function (sprite, x, y, heading_x, heading_y, scale, colors, stroke_color, fill, text, text_color) {
-                console.log(heading_x, heading_y);
                 if (heading_x === 0 && heading_y === 1) {
                         sprite += '-bottom';
                 }
@@ -286,10 +297,11 @@ var GridVisualization = function(width, height, gridWidth, gridHeight, context, 
                         sprite += '-left';
                 }
 
-                console.log(sprite);
+                if (sprite === null) {
+                        return;
+                }
 
-                var img = new Image();
-                img.src = "local/".concat(sprite).concat('.png');
+                var img = fetch_image(sprite, draw);
                 if (scale === undefined) {
                         var scale = 1
                 }
@@ -303,10 +315,8 @@ var GridVisualization = function(width, height, gridWidth, gridHeight, context, 
                 var tx = (x + 0.5) * cellWidth;
                 var ty = (y + 0.5) * cellHeight;
 
-
-                img.onload = function() {
+                function draw() {
                         context.drawImage(img, cx, cy, dWidth, dHeight);
-                        // This part draws the text on the image
                         if (text !== undefined) {
                                 // ToDo: Fix fillStyle
                                 // context.fillStyle = text_color;
@@ -315,6 +325,8 @@ var GridVisualization = function(width, height, gridWidth, gridHeight, context, 
                                 context.fillText(text, tx, ty);
                         }
                 }
+
+                draw()
         }
 
         this.drawCustomImage = function (shape, x, y, scale, text, text_color_) {

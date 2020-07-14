@@ -1,6 +1,6 @@
 X = ostacolo
 O = percorso libero
-S = scaffale
-C = cassa
-E = entrata
-U = uscita
+1..N = cassa
+A..J = entrypoint
+S = ingresso snake
+Z = uscita snake

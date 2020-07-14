@@ -245,7 +245,7 @@ class CustomModularServer(tornado.web.Application):
     local_handler = (
         r"/local/(.*)",
         tornado.web.StaticFileHandler,
-        {"path": os.path.join(os.path.dirname(__file__), "..", "public")},
+        {"path": os.path.join(os.path.dirname(__file__), "..", "templates", "local")},
     )
 
     handlers = [page_handler, socket_handler, static_handler, local_handler]

@@ -18,12 +18,15 @@ def agent_portrayal(agent):
             "Layer": 1,
             "w": 1,
             "h": 1,
-            "Color": "black",
+            "text": agent.unique_id,
+            "text_color": "white",
+            "Color": "#00000044",
         }
 
     if isinstance(agent, CashierAgent):
         return {
-            "Shape": "rect",
+            "Shape": "sprite",
+            "sprite": "images/characters/cashier" if agent.open else None,
             "Filled": "true",
             "Layer": 1,
             "w": 1,
@@ -34,19 +37,18 @@ def agent_portrayal(agent):
     if isinstance(agent, CustomerAgent):
         return {
             "Shape": "sprite",
-            "sprite": "images/characters/scout",
+            "sprite": agent.sprite,
             "Filled": "true",
-            "Layer": 4,
-            "r": 0.8,
+            "Layer": 1,
             "Color": "blue",
-            "text": agent.unique_id,
-            "text_color": "white"
+            # "text": agent.unique_id,
+            # "text_color": "white"
         }
 
     raise Exception('Undefined render function for agent \'{}\''.format(type(agent)))
 
 
-with open(os.path.join(os.getcwd(), '..', 'resources', 'map3.txt')) as f:
+with open(os.path.join(os.getcwd(), '..', 'resources', 'map3-snake.txt')) as f:
     capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
     terrain_map_name = f.readline().strip()
     world = [list(c) for c in f.read().split('\n') if c]

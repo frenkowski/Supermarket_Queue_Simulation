@@ -2,8 +2,8 @@ from mesa.visualization.modules import CanvasGrid
 
 
 class CanvasGridWithTerrain(CanvasGrid):
-    package_includes = ["GridDraw.js", "InteractionHandler.js"]
-    local_includes = ["CanvasModule.js", "TerrainGenerator.js"]
+    package_includes = ["InteractionHandler.js"]
+    local_includes = ["CanvasModule.js", "TerrainGenerator.js", "GridDraw.js"]
 
     def __init__(
         self,

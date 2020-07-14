@@ -2,8 +2,6 @@ from mesa import Agent, Model
 from mesa.time import BaseScheduler
 from mesa.space import SingleGrid
 from mesa.datacollection import DataCollector
-from mesa.visualization.modules.ChartVisualization import ChartModule
-from mesa.visualization.modules.TextVisualization import TextElement
 
 import numpy as np
 from scipy.spatial import distance
@@ -204,10 +202,11 @@ class SupermarketModel(Model):
             
         self.datacollector = DataCollector(
             model_reporters={"Agent in supermarket": agents_in_supermarket,
-                             "Agent that SHOPPING": agents_in_shopping,
-                             "Agent IN_QUEUE": agents_in_queue_and_paying,
-                             "Avg. number of agent IN_QUEUE": agents_in_queue_avg,
-                             "Avg. time spent in queue": agent_in_queue_avg_time}
+                             "Agent that shopping": agents_in_shopping,
+                             "Agent in queue": agents_in_queue,
+                             "Avg. number of agent in queue": agents_in_queue_avg,
+                             "Avg. time spent in queue": agent_in_queue_avg_time,
+                             "Agent in payment": agents_in_paying}
         )
 
     def step(self):
@@ -253,11 +252,11 @@ class Counter():
         self.count -= 1
         return self.count
 
-def agents_in_queue_and_paying(model):
-    # Count number of agents IN_QUEUE and PAYING state.   
+def agents_in_queue(model):
+    # Count number of agents IN_QUEUE state.   
     agents_in_queue = [agent for agent in model.schedule.agents 
                        if isinstance(agent, CustomerAgent) and 
-                       agent.phase in [AgentPhase.IN_QUEUE, AgentPhase.PAYING]]
+                       agent.phase in [AgentPhase.IN_QUEUE]]  # Removed PAYING
     return len(agents_in_queue)
 
 def agents_in_supermarket(model):
@@ -275,14 +274,21 @@ def agents_in_queue_avg(model):
     # Return number avg num of agent in queue.
     agents = [agent for agent in model.schedule.agents
               if isinstance(agent, CustomerAgent) and
-              agent.phase in [AgentPhase.IN_QUEUE, AgentPhase.PAYING]]
+              agent.phase in [AgentPhase.IN_QUEUE]] # Removed PAYING.
     return len(agents) / model.open_cashier
+
+def agents_in_paying(model):
+    # Count number of agents in PAYING state.
+    agents_in_queue = [agent for agent in model.schedule.agents
+                       if isinstance(agent, CustomerAgent) and
+                       agent.phase in [AgentPhase.PAYING]]
+    return len(agents_in_queue)
 
 def agent_in_queue_avg_time(model):
     # Count avg number of steps IN_QUEUE and PAYING.
-    agents = agents_in_queue_and_paying(model)
-    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] + 
-                   agent.step_for_phase[AgentPhase.PAYING] 
+    agents = agents_in_queue(model)
+    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] #+ 
+                   #agent.step_for_phase[AgentPhase.PAYING] 
                    for agent in model.schedule.agents]
     return round(sum(agents_time) / agents, 2) if agents != 0 else 0
     

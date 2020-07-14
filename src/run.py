@@ -3,11 +3,13 @@ import numpy as np
 
 from mesa.visualization.modules import CanvasGrid
 from mesa.visualization.ModularVisualization import ModularServer
+from mesa.visualization.modules.ChartVisualization import ChartModule
+from mesa.visualization.modules.TextVisualization import TextElement
+from mesa.visualization.modules.PieChartVisualization import PieChartModule
 import tornado
 
 from server import CustomModularServer
 from model import *
-
 
 def agent_portrayal(agent):
     if isinstance(agent, ObstacleAgent):
@@ -54,12 +56,28 @@ height = len(world)
 grid = CanvasGrid(agent_portrayal, width, height, width*40, height*40)
 
 # Label MUST match with value of model variables added to data collector. 
-agent_in_queue_chart = ChartModule([{"Label": "Agent IN_QUEUE", "Color": "#AA0000"},
+piechart_agents_num_element = PieChartModule([{"Label": "Agent in queue", 
+                                               "Color": "#AA0000"},
+                                              {"Label": "Agent that shopping",
+                                                  "Color": "#FF8040"},
+                                              {"Label": "Agent in payment",
+                                                  "Color": "#800000"}
+                                             ], 300, 300,
+                                  data_collector_name='datacollector')
+
+agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA0000"},
                              ], data_collector_name='datacollector')
+
+avg_agent_in_queue_chart = ChartModule([{"Label": "Avg. number of agent in queue", "Color": "#0000A0"},
+                                    ], data_collector_name='datacollector')
+
+avg_time_agent_in_queue_chart = ChartModule([{"Label": "Avg. time spent in queue", "Color": "#408080"},
+                                        ], data_collector_name='datacollector')
+
 
 server = CustomModularServer(
     SupermarketModel,
-    [grid, agent_in_queue_chart],
+    [grid, piechart_agents_num_element, agent_in_queue_chart, avg_agent_in_queue_chart, avg_time_agent_in_queue_chart],
     "Supermarket Model",
     {"N": capacity, "B": lane_switch_boundary, "world": world, "width": width, "height": height}
 )

@@ -1,6 +1,9 @@
 from mesa import Agent, Model
 from mesa.time import BaseScheduler
 from mesa.space import SingleGrid
+from mesa.datacollection import DataCollector
+from mesa.visualization.modules.ChartVisualization import ChartModule
+from mesa.visualization.modules.TextVisualization import TextElement
 
 import numpy as np
 from scipy.spatial import distance
@@ -18,6 +21,8 @@ class CashierAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.open = self.random.random() > 0.5
+        if self.open:
+            model.open_cashier += 1
 
     def step(self):
         pass
@@ -169,6 +174,7 @@ class SupermarketModel(Model):
         self.queue_entry_points = {}
         self.cash_registers = {}
         self.agents_count = 0
+        self.open_cashier = 0
 
         # Populate grid from world
         for y, row in enumerate(self.world):
@@ -195,12 +201,21 @@ class SupermarketModel(Model):
         self.floor_fields = {}
         for dest_label, (dest_y, dest_x) in self.queue_entry_points.items():
             self.floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
+            
+        self.datacollector = DataCollector(
+            model_reporters={"Agent in supermarket": agents_in_supermarket,
+                             "Agent that SHOPPING": agents_in_shopping,
+                             "Agent IN_QUEUE": agents_in_queue_and_paying,
+                             "Avg. number of agent IN_QUEUE": agents_in_queue_avg,
+                             "Avg. time spent in queue": agent_in_queue_avg_time}
+        )
 
     def step(self):
         print("STEP - " + str(len(self.schedule.agents)))
         if len(self.schedule.agents) < self.capacity:
             self.schedule.add(self.create_agent())
-
+            
+        self.datacollector.collect(self)
         self.schedule.step()
         #print("AGENTS IN_QUEUE_AVG_STEPS: " + str(agent_in_queue_avg_time(self)))
 
@@ -240,8 +255,9 @@ class Counter():
 
 def agents_in_queue_and_paying(model):
     # Count number of agents IN_QUEUE and PAYING state.   
-    agents_in_queue = [agent for agent in model.schedule.agents if isinstance(
-        agent, CustomerAgent) and agent.phase in [AgentPhase.IN_QUEUE, AgentPhase.PAYING]]
+    agents_in_queue = [agent for agent in model.schedule.agents 
+                       if isinstance(agent, CustomerAgent) and 
+                       agent.phase in [AgentPhase.IN_QUEUE, AgentPhase.PAYING]]
     return len(agents_in_queue)
 
 def agents_in_supermarket(model):
@@ -257,15 +273,16 @@ def agents_in_shopping(model):
 
 def agents_in_queue_avg(model):
     # Return number avg num of agent in queue.
-    agents = agents_in_queue_and_paying(model)
-    open_cashier = [agent for agent in model.schedule.agents if isinstance(
-        agent, CashierAgent) and agent.open]
-    return len(agents) / len(open_cashier)
+    agents = [agent for agent in model.schedule.agents
+              if isinstance(agent, CustomerAgent) and
+              agent.phase in [AgentPhase.IN_QUEUE, AgentPhase.PAYING]]
+    return len(agents) / model.open_cashier
 
 def agent_in_queue_avg_time(model):
     # Count avg number of steps IN_QUEUE and PAYING.
     agents = agents_in_queue_and_paying(model)
-    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.PAYING] 
+    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] + 
+                   agent.step_for_phase[AgentPhase.PAYING] 
                    for agent in model.schedule.agents]
     return round(sum(agents_time) / agents, 2) if agents != 0 else 0
     

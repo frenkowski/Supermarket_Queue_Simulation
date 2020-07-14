@@ -52,9 +52,14 @@ width = len(world[0])
 height = len(world)
 
 grid = CanvasGrid(agent_portrayal, width, height, width*40, height*40)
+
+# Label MUST match with value of model variables added to data collector. 
+agent_in_queue_chart = ChartModule([{"Label": "Agent IN_QUEUE", "Color": "#AA0000"},
+                             ], data_collector_name='datacollector')
+
 server = CustomModularServer(
     SupermarketModel,
-    [grid],
+    [grid, agent_in_queue_chart],
     "Supermarket Model",
     {"N": capacity, "B": lane_switch_boundary, "world": world, "width": width, "height": height}
 )

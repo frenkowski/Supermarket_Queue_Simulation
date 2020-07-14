@@ -252,6 +252,7 @@ class Counter():
         self.count -= 1
         return self.count
 
+# TO-DO: Check if we want to count number of agent in queue as number of agent in queue + agents in payment or only agent in queue (last version use only agent in payment).
 def agents_in_queue(model):
     # Count number of agents IN_QUEUE state.   
     agents_in_queue = [agent for agent in model.schedule.agents 

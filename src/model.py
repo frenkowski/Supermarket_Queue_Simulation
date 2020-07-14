@@ -6,7 +6,6 @@ import numpy as np
 from scipy.spatial import distance
 from enum import Enum
 
-
 class ObstacleAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
@@ -33,6 +32,13 @@ class CustomerAgent(Agent):
         self.paying_time = Counter(self.n_prod)
         self.phase = AgentPhase.SHOPPING
         self.objective = None
+        
+        # Dictionary for counting number of step in each phase of Supermarket.
+        self.step_for_phase = {
+            AgentPhase.PAYING: 0,
+            AgentPhase.SHOPPING: 1,
+            AgentPhase.IN_QUEUE: 0
+        }
 
     def step(self):
         # print('Phase AgentPhase.{}'.format(self.phase.name))
@@ -65,6 +71,10 @@ class CustomerAgent(Agent):
 
         self.print_agent_info()
         print(self.model.queues)
+        print(self.step_for_phase)
+        
+        # Update should go at head or tail of atw method ???
+        self.step_for_phase[self.phase] += 1
 
     def decide_queue(self):
         coin = self.random.randint(0, 4)
@@ -192,6 +202,7 @@ class SupermarketModel(Model):
             self.schedule.add(self.create_agent())
 
         self.schedule.step()
+        #print("AGENTS IN_QUEUE_AVG_STEPS: " + str(agent_in_queue_avg_time(self)))
 
     def create_agent(self):
         agent = CustomerAgent(self.agents_count, self)
@@ -208,12 +219,10 @@ class SupermarketModel(Model):
 
         return field
 
-
 class AgentPhase(Enum):
     SHOPPING = 0
     IN_QUEUE = 1
     PAYING = 2
-
 
 class Counter():
     def __init__(self, start):
@@ -228,3 +237,35 @@ class Counter():
     def decrement(self):
         self.count -= 1
         return self.count
+
+def agents_in_queue_and_paying(model):
+    # Count number of agents IN_QUEUE and PAYING state.   
+    agents_in_queue = [agent for agent in model.schedule.agents if isinstance(
+        agent, CustomerAgent) and agent.phase in [AgentPhase.IN_QUEUE, AgentPhase.PAYING]]
+    return len(agents_in_queue)
+
+def agents_in_supermarket(model):
+    # Return number of agents in supermarket.
+    agents = [agent for agent in model.schedule.agents]
+    return len(agents)
+
+def agents_in_shopping(model):
+    # Return number of agents that shopping.
+    agents = [agent for agent in model.schedule.agents if isinstance(
+        agent, CustomerAgent) and agent.phase in [AgentPhase.SHOPPING]]
+    return len(agents)
+
+def agents_in_queue_avg(model):
+    # Return number avg num of agent in queue.
+    agents = agents_in_queue_and_paying(model)
+    open_cashier = [agent for agent in model.schedule.agents if isinstance(
+        agent, CashierAgent) and agent.open]
+    return len(agents) / len(open_cashier)
+
+def agent_in_queue_avg_time(model):
+    # Count avg number of steps IN_QUEUE and PAYING.
+    agents = agents_in_queue_and_paying(model)
+    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.PAYING] 
+                   for agent in model.schedule.agents]
+    return round(sum(agents_time) / agents, 2) if agents != 0 else 0
+    

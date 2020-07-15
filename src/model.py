@@ -157,7 +157,7 @@ class CustomerAgent(Agent):
               " - DESTINATION: " + str(self.objective) + ".")
 
 class SupermarketModel(Model):
-    def __init__(self, N, B, world, width, height):
+    def __init__(self, N, B, world, width, height, Q):
         self.world = world
         self.width = width
         self.height = height
@@ -252,7 +252,7 @@ class Counter():
         return self.count
 
 ### FUNCTIONS FOR DATA COLLECTION ###
-# TO-DO: Check if we want to count number of agent in queue as number of agent in queue + agents in payment or only agent in queue (last version use only agent in queue).
+# TODO: Check if we want to count number of agent in queue as number of agent in queue + agents in payment or only agent in queue (last version use only agent in queue).
 def agents_in_queue(model):
     # Count number of agents IN_QUEUE state.   
     agents_in_queue = [agent for agent in model.schedule.agents 
@@ -269,7 +269,8 @@ def agents_in_queue_avg(model):
 
 def agents_in_supermarket(model):
     # Return number of agents in supermarket.
-    agents = [agent for agent in model.schedule.agents]
+    agents = [agent for agent in model.schedule.agents if isinstance(
+        agent, CustomerAgent)]
     return len(agents)
 
 def agents_in_shopping(model):

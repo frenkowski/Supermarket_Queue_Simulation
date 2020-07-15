@@ -6,6 +6,7 @@ from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules.ChartVisualization import ChartModule
 from mesa.visualization.modules.TextVisualization import TextElement
 from mesa.visualization.modules.PieChartVisualization import PieChartModule
+from mesa.visualization.UserParam import UserSettableParameter
 import tornado
 
 from server import CustomModularServer
@@ -53,6 +54,9 @@ with open(os.path.join(os.getcwd(), '..', 'resources', 'map2.txt')) as f:
 width = len(world[0])
 height = len(world)
 
+queueType = UserSettableParameter('choice', 'Queue', value='Default',
+                                  choices=['Default', 'Snake'])
+
 grid = CanvasGrid(agent_portrayal, width, height, width*40, height*40)
 
 # Label MUST match with value of model variables added to data collector. 
@@ -62,11 +66,12 @@ piechart_agents_num_element = PieChartModule([{"Label": "Agent in queue",
                                                   "Color": "#FF8040"},
                                               {"Label": "Agent in payment",
                                                   "Color": "#800000"}
-                                             ], 250, 250,
+                                             ], 300, 300,
                                   data_collector_name='datacollector')
 
-agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA0000"}, {"Label": "Avg. number of agent in queue", "Color": "#0000A0"}
-                             ], data_collector_name='datacollector')
+agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA0000"}, 
+                                    {"Label": "Avg. number of agent in queue", "Color": "#0000A0"}
+                                    ], data_collector_name='datacollector')
 
 #avg_agent_in_queue_chart = ChartModule([{"Label": "Avg. number of agent in queue", "Color": "#0000A0"},
 #                                    ], data_collector_name='datacollector')
@@ -74,12 +79,13 @@ agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA000
 avg_time_agent_in_queue_chart = ChartModule([{"Label": "Avg. time spent in queue", "Color": "#408080"},
                                         ], data_collector_name='datacollector')
 
-
+# TODO: Add queue param for Model.
 server = CustomModularServer(
     SupermarketModel,
     [grid, piechart_agents_num_element, agent_in_queue_chart, avg_time_agent_in_queue_chart],
     "Supermarket Model",
-    {"N": capacity, "B": lane_switch_boundary, "world": world, "width": width, "height": height}
+    {"N": capacity, "B": lane_switch_boundary, "world": world,
+        "width": width, "height": height, "Q": queueType}
 )
 
 print(server.settings)

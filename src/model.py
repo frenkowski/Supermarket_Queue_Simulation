@@ -4,6 +4,8 @@ from enum import Enum
 from mesa import Agent, Model
 from mesa.time import BaseScheduler
 from mesa.space import SingleGrid
+from mesa.datacollection import DataCollector
+
 import numpy as np
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.core.grid import Grid
@@ -38,7 +40,6 @@ class Counter():
         self.count -= 1
         return self.count
 
-
 class ObstacleAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
@@ -55,6 +56,8 @@ class CashierAgent(Agent):
     def extend_life(self, remaining_life):
         self.remaining_life = remaining_life
         self.open = remaining_life is not 0
+        if self.open:
+            self.model.open_cashier += 1
 
     def step(self):
         if self.remaining_life > 0:
@@ -72,9 +75,16 @@ class CustomerAgent(Agent):
         self.phase = AgentPhase.SHOPPING
         self.destination = None
         self.objective = None
+        
+        # Dictionary for counting number of step in each phase of Supermarket.
+        self.step_for_phase = {
+            AgentPhase.PAYING: 0,
+            AgentPhase.SHOPPING: 1,
+            AgentPhase.IN_QUEUE: 0
+        }
 
     def step(self):
-        # self.print_agent_info()
+        self.print_agent_info()
 
         if self.phase == AgentPhase.SHOPPING:
             if not self.shopping_time.is_expired():
@@ -138,7 +148,11 @@ class CustomerAgent(Agent):
                 self.model.grid.remove_agent(self)
                 self.model.schedule.remove(self)
 
-        # print(self.model.queues)
+        print(self.model.queues)
+        print(self.step_for_phase)
+        
+        # Update should go at head or tail of atw method ???
+        self.step_for_phase[self.phase] += 1
 
     def decide_spawn_point(self):
         coin = self.random.randint(0, len(self.model.entry_points) - 1)
@@ -241,7 +255,7 @@ class CustomerAgent(Agent):
         ))
 
 class SupermarketModel(Model):
-    def __init__(self, N, B, world, width, height, queue_type=QueueType.SNAKE):
+    def __init__(self, N, B, world, width, height, Q=QueueType.SNAKE):
         self.world = world
         self.width = width
         self.height = height
@@ -250,7 +264,7 @@ class SupermarketModel(Model):
         self.capacity = N
         self.lane_switch_boundary = B
         self.running = True
-        self.queue_type = queue_type
+        self.queue_type = Q
 
         self.finder = AStarFinder()
         self.snake_entry = None
@@ -262,6 +276,7 @@ class SupermarketModel(Model):
         self.cashiers = {}
         self.cash_registers = {}
         self.agents_count = 0
+        self.open_cashier = 0
 
         # Populate grid from world
         for y, row in enumerate(self.world):
@@ -294,6 +309,14 @@ class SupermarketModel(Model):
         self.floor_fields = {}
         for dest_label, (dest_y, dest_x) in self.cash_registers.items():
             self.floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
+            
+        self.datacollector = DataCollector(
+            model_reporters={"Agent in supermarket": agents_in_supermarket,
+                             "Agent that shopping": agents_in_shopping,
+                             "Agent in queue": agents_in_queue,
+                             "Avg. number of agent in queue": agents_in_queue_avg,
+                             "Avg. time spent in queue": agent_in_queue_avg_time,
+                             "Agent in payment": agents_in_paying})
 
         if self.queue_type == QueueType.SNAKE:
             self.distance_matrix[world_matrix == 'X'] = 1
@@ -311,8 +334,10 @@ class SupermarketModel(Model):
         print('Customers: {} - {}'.format(self.agents_count, len(self.schedule.agents)))
         if len(self.schedule.agents) - 4 < self.capacity and self.should_spawn_agent():
             self.schedule.add(self.create_agent())
-
+            
+        self.datacollector.collect(self)
         self.schedule.step()
+        #print("AGENTS IN_QUEUE_AVG_STEPS: " + str(agent_in_queue_avg_time(self)))
 
         serving, closed = self.partition(self.cashiers.values(), lambda c: c.open)
         if len(serving) > 0 and len(closed) > 0:
@@ -396,3 +421,68 @@ class SupermarketModel(Model):
                     field[x1, y1] = distance.euclidean([x1, y1], target)
 
         return field
+
+
+class Counter():
+    def __init__(self, start):
+        self.count = start
+
+    def __repr__(self):
+        return str(self.count)
+
+    def is_expired(self):
+        return self.count == 0
+
+    def decrement(self):
+        self.count -= 1
+        return self.count
+
+
+### FUNCTIONS FOR DATA COLLECTION ###
+# TODO: Check if we want to count number of agent in queue as number of agent in queue + agents in payment or only agent in queue (last version use only agent in queue).
+def agents_in_queue(model):
+    # Count number of agents IN_QUEUE state.   
+    agents_in_queue = [agent for agent in model.schedule.agents 
+                       if isinstance(agent, CustomerAgent) and 
+                       agent.phase in [AgentPhase.IN_QUEUE]]  # Removed PAYING
+    return len(agents_in_queue)
+
+
+def agents_in_queue_avg(model):
+    # Return number avg num of agent in queue.
+    agents = [agent for agent in model.schedule.agents
+              if isinstance(agent, CustomerAgent) and
+              agent.phase in [AgentPhase.IN_QUEUE]]  # Removed PAYING.
+    return round(len(agents) / model.open_cashier, 2)
+
+
+def agents_in_supermarket(model):
+    # Return number of agents in supermarket.
+    agents = [agent for agent in model.schedule.agents if isinstance(
+        agent, CustomerAgent)]
+    return len(agents)
+
+
+def agents_in_shopping(model):
+    # Return number of agents that shopping.
+    agents = [agent for agent in model.schedule.agents if isinstance(
+        agent, CustomerAgent) and agent.phase in [AgentPhase.SHOPPING]]
+    return len(agents)
+
+
+def agents_in_paying(model):
+    # Count number of agents in PAYING state.
+    agents_in_queue = [agent for agent in model.schedule.agents
+                       if isinstance(agent, CustomerAgent) and
+                       agent.phase in [AgentPhase.PAYING]]
+    return len(agents_in_queue)
+
+
+def agent_in_queue_avg_time(model):
+    # Count avg number of steps IN_QUEUE and PAYING.
+    agents = agents_in_queue(model)
+    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] #+ 
+                   #agent.step_for_phase[AgentPhase.PAYING] 
+                   for agent in model.schedule.agents]
+    return round(sum(agents_time) / agents, 2) if agents != 0 else 0
+    

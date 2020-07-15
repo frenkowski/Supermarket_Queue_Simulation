@@ -80,7 +80,8 @@ class CustomerAgent(Agent):
         self.step_for_phase = {
             AgentPhase.PAYING: 0,
             AgentPhase.SHOPPING: 1,
-            AgentPhase.IN_QUEUE: 0
+            AgentPhase.IN_QUEUE: 0,
+            AgentPhase.REACHING_QUEUE: 0
         }
 
     def step(self):
@@ -431,7 +432,7 @@ class Counter():
         return str(self.count)
 
     def is_expired(self):
-        return self.count == 0
+        return self.count <= 0
 
     def decrement(self):
         self.count -= 1
@@ -483,6 +484,6 @@ def agent_in_queue_avg_time(model):
     agents = agents_in_queue(model)
     agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] #+ 
                    #agent.step_for_phase[AgentPhase.PAYING] 
-                   for agent in model.schedule.agents]
+                   for agent in model.schedule.agents if isinstance(agent, CustomerAgent)]
     return round(sum(agents_time) / agents, 2) if agents != 0 else 0
     

@@ -59,8 +59,8 @@ width = len(world[0])
 height = len(world)
 tile_size = 24
 
-queueType = UserSettableParameter('choice', 'Queue', value='Default',
-                                  choices=['Default', 'Snake'])
+queueType = QueueType.SNAKE #UserSettableParameter('choice', 'Queue', value='Default',
+                                  #choices=[QueueType.CLASSIC, QueueType.SNAKE])
 
 grid = CanvasGridWithTerrain(agent_portrayal, width, height, terrain_map_name, width*tile_size, height*tile_size)
 

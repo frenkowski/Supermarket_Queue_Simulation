@@ -4,7 +4,7 @@
 
 var PieChartModule = function(fields, canvas_width, canvas_height) {
     // Create the overall chart div
-    var chart_div_tag = "<div class='pie chart' width='" + canvas_width + "'></div>";
+    var chart_div_tag = "<div class='pie chart text-center' width='" + canvas_width + "'></div>";
     var chart_div = $(chart_div_tag)[0];
     $("#elements").append(chart_div);
 
@@ -21,7 +21,7 @@ var PieChartModule = function(fields, canvas_width, canvas_height) {
     chart_div.append(legend_element);
 
     var legend = d3.select(legend_element)
-        .attr("style","display:block;width:"
+        .attr("style","display:block;margin: 0 auto;width:"
             + canvas_width + "px;text-align:center")
 
     legend.selectAll("span")

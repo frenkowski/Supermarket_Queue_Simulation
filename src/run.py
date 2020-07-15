@@ -62,14 +62,14 @@ piechart_agents_num_element = PieChartModule([{"Label": "Agent in queue",
                                                   "Color": "#FF8040"},
                                               {"Label": "Agent in payment",
                                                   "Color": "#800000"}
-                                             ], 300, 300,
+                                             ], 250, 250,
                                   data_collector_name='datacollector')
 
-agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA0000"},
+agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA0000"}, {"Label": "Avg. number of agent in queue", "Color": "#0000A0"}
                              ], data_collector_name='datacollector')
 
-avg_agent_in_queue_chart = ChartModule([{"Label": "Avg. number of agent in queue", "Color": "#0000A0"},
-                                    ], data_collector_name='datacollector')
+#avg_agent_in_queue_chart = ChartModule([{"Label": "Avg. number of agent in queue", "Color": "#0000A0"},
+#                                    ], data_collector_name='datacollector')
 
 avg_time_agent_in_queue_chart = ChartModule([{"Label": "Avg. time spent in queue", "Color": "#408080"},
                                         ], data_collector_name='datacollector')
@@ -77,7 +77,7 @@ avg_time_agent_in_queue_chart = ChartModule([{"Label": "Avg. time spent in queue
 
 server = CustomModularServer(
     SupermarketModel,
-    [grid, piechart_agents_num_element, agent_in_queue_chart, avg_agent_in_queue_chart, avg_time_agent_in_queue_chart],
+    [grid, piechart_agents_num_element, agent_in_queue_chart, avg_time_agent_in_queue_chart],
     "Supermarket Model",
     {"N": capacity, "B": lane_switch_boundary, "world": world, "width": width, "height": height}
 )

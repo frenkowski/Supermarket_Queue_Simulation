@@ -206,8 +206,7 @@ class SupermarketModel(Model):
                              "Agent in queue": agents_in_queue,
                              "Avg. number of agent in queue": agents_in_queue_avg,
                              "Avg. time spent in queue": agent_in_queue_avg_time,
-                             "Agent in payment": agents_in_paying}
-        )
+                             "Agent in payment": agents_in_paying})
 
     def step(self):
         print("STEP - " + str(len(self.schedule.agents)))
@@ -252,13 +251,21 @@ class Counter():
         self.count -= 1
         return self.count
 
-# TO-DO: Check if we want to count number of agent in queue as number of agent in queue + agents in payment or only agent in queue (last version use only agent in payment).
+### FUNCTIONS FOR DATA COLLECTION ###
+# TO-DO: Check if we want to count number of agent in queue as number of agent in queue + agents in payment or only agent in queue (last version use only agent in queue).
 def agents_in_queue(model):
     # Count number of agents IN_QUEUE state.   
     agents_in_queue = [agent for agent in model.schedule.agents 
                        if isinstance(agent, CustomerAgent) and 
                        agent.phase in [AgentPhase.IN_QUEUE]]  # Removed PAYING
     return len(agents_in_queue)
+
+def agents_in_queue_avg(model):
+    # Return number avg num of agent in queue.
+    agents = [agent for agent in model.schedule.agents
+              if isinstance(agent, CustomerAgent) and
+              agent.phase in [AgentPhase.IN_QUEUE]]  # Removed PAYING.
+    return round(len(agents) / model.open_cashier, 2)
 
 def agents_in_supermarket(model):
     # Return number of agents in supermarket.
@@ -270,13 +277,6 @@ def agents_in_shopping(model):
     agents = [agent for agent in model.schedule.agents if isinstance(
         agent, CustomerAgent) and agent.phase in [AgentPhase.SHOPPING]]
     return len(agents)
-
-def agents_in_queue_avg(model):
-    # Return number avg num of agent in queue.
-    agents = [agent for agent in model.schedule.agents
-              if isinstance(agent, CustomerAgent) and
-              agent.phase in [AgentPhase.IN_QUEUE]] # Removed PAYING.
-    return len(agents) / model.open_cashier
 
 def agents_in_paying(model):
     # Count number of agents in PAYING state.

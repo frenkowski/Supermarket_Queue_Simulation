@@ -5,6 +5,9 @@ from mesa import Agent, Model
 from mesa.time import BaseScheduler
 from mesa.space import SingleGrid
 import numpy as np
+from pathfinding.core.diagonal_movement import DiagonalMovement
+from pathfinding.core.grid import Grid
+from pathfinding.finder.a_star import AStarFinder
 from scipy.spatial import distance
 
 
@@ -93,11 +96,19 @@ class CustomerAgent(Agent):
                     self.phase = AgentPhase.IN_QUEUE
 
             elif self.model.queue_type == QueueType.SNAKE:
-                self.destination = self.model.snake_entry
-                self.move_towards_cell()
+                self.destination = self.model.snake_exit
+
+                self.model.as_grid.cleanup()
+                start = self.model.as_grid.node(*self.pos)
+                end = self.model.as_grid.node(*self.destination)
+                path, _ = self.model.finder.find_path(start, end, self.model.as_grid)
+
+                dest_x, dest_y  = path[1]
+                if self.model.grid[dest_x][dest_y] != None:
+                    return
 
                 # Try to reach queue
-                self.model.grid.move_agent(self, (dest_x, dest_y))
+                self.model.grid.move_agent(self, path[1])
                 if self.has_reached_destination():
                     self.phase = AgentPhase.IN_QUEUE
 
@@ -115,7 +126,8 @@ class CustomerAgent(Agent):
 
                 self.model.grid.move_agent(self, (x, y + 1))
             if self.model.queue_type == QueueType.SNAKE:
-                print('Snake entry reached, now what!?')
+                # print('Snake entry reached, now what!?')
+                pass
 
         elif self.phase == AgentPhase.PAYING:
             if not self.paying_time.is_expired():
@@ -149,9 +161,9 @@ class CustomerAgent(Agent):
         self.update_objective(selected_move['destination'])
         self.destination = self.find_queue_start_position()
 
-        return self.move_towards_destination()
+        return self.get_move_towards_destination()
 
-    def move_towards_destination(self):
+    def get_move_towards_destination(self):
         dest_col, dest_row = self.destination
 
         x, y = self.pos
@@ -229,7 +241,7 @@ class CustomerAgent(Agent):
         ))
 
 class SupermarketModel(Model):
-    def __init__(self, N, B, world, width, height, queue_type=QueueType.CLASSIC):
+    def __init__(self, N, B, world, width, height, queue_type=QueueType.SNAKE):
         self.world = world
         self.width = width
         self.height = height
@@ -238,8 +250,9 @@ class SupermarketModel(Model):
         self.capacity = N
         self.lane_switch_boundary = B
         self.running = True
-
         self.queue_type = queue_type
+
+        self.finder = AStarFinder()
         self.snake_entry = None
         self.snake_exit = None
 
@@ -282,11 +295,21 @@ class SupermarketModel(Model):
         for dest_label, (dest_y, dest_x) in self.cash_registers.items():
             self.floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
 
+        if self.queue_type == QueueType.SNAKE:
+            self.distance_matrix[world_matrix == 'X'] = 1
+            self.distance_matrix[world_matrix == '1'] = 1
+            self.distance_matrix[world_matrix == '2'] = 1
+            self.distance_matrix[world_matrix == '3'] = 1
+            self.distance_matrix[world_matrix == '4'] = 1
+            self.distance_matrix[world_matrix == '5'] = 1
+            self.as_grid = Grid(matrix=self.distance_matrix, inverse=True)
+
         coin = self.random.randint(1, len(self.cashiers) - 1)
         self.cashiers[str(coin)].extend_life(300)
 
     def step(self):
-        if len(self.schedule.agents) < self.capacity and self.should_spawn_agent():
+        print('Customers: {} - {}'.format(self.agents_count, len(self.schedule.agents)))
+        if len(self.schedule.agents) - 4 < self.capacity and self.should_spawn_agent():
             self.schedule.add(self.create_agent())
 
         self.schedule.step()
@@ -323,10 +346,11 @@ class SupermarketModel(Model):
         return agent
 
     def should_spawn_agent(self):
-        # -\frac{\cos\left(\frac{t\pi}{1200}\right)}{2}+\frac{1}{2}
+        # Current: -\frac{\cos\left(\frac{t\pi}{1200}\right)}{2}+\frac{1}{2}
+        # Attempt: \frac{1}{16\cos^{2}\left(\pi x\right)+1}
         relative_time = self.schedule.steps % 1440
         prob = (-math.cos(relative_time * np.pi / 720) + 1) / 2
-        return self.random.random() < prob
+        return self.random.random() <= prob
 
         # if self.random.random() < prob:
             # return self.random.random() > 0.85
@@ -335,8 +359,30 @@ class SupermarketModel(Model):
 
     def random_sprite(self):
         sprites = [
-            'images/characters/scout',
-            'images/characters/old-man',
+            # 'images/characters/scout',
+            # 'images/characters/old-man',
+            'images/characters/grandpa2',
+            'images/characters/grandpa3',
+            'images/characters/man',
+            'images/characters/man2',
+            'images/characters/man3',
+            'images/characters/man4',
+            'images/characters/man5',
+            'images/characters/man6',
+            'images/characters/man7',
+            'images/characters/man8',
+            'images/characters/man9',
+            'images/characters/girl',
+            'images/characters/girl2',
+            'images/characters/girl3',
+            'images/characters/girl4',
+            'images/characters/girl5',
+            'images/characters/girl6',
+            'images/characters/girl7',
+            'images/characters/girl8',
+            'images/characters/girl9',
+            'images/characters/child-male',
+            'images/characters/child-female',
         ]
 
         return sprites[self.random.randint(0, len(sprites) - 1)]

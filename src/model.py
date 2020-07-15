@@ -256,7 +256,7 @@ class CustomerAgent(Agent):
         ))
 
 class SupermarketModel(Model):
-    def __init__(self, N, B, world, width, height, Q=QueueType.SNAKE):
+    def __init__(self, N, B, world, width, height, Q=QueueType.CLASSIC):
         self.world = world
         self.width = width
         self.height = height
@@ -265,7 +265,7 @@ class SupermarketModel(Model):
         self.capacity = N
         self.lane_switch_boundary = B
         self.running = True
-        self.queue_type = Q
+        self.queue_type = QueueType[Q]
 
         self.finder = AStarFinder()
         self.snake_entry = None

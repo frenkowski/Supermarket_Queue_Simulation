@@ -49,8 +49,11 @@ def agent_portrayal(agent):
 
     raise Exception('Undefined render function for agent \'{}\''.format(type(agent)))
 
+queueType = UserSettableParameter('choice', 'Queue', value=QueueType.CLASSIC.name,
+                                  choices=[QueueType.CLASSIC.name, QueueType.SNAKE.name])
+filename = "map3.txt" if queueType == QueueType.CLASSIC else "map3-snake.txt"
 
-with open(os.path.join(os.getcwd(), '..', 'resources', 'map3.txt')) as f:
+with open(os.path.join(os.getcwd(), '..', 'resources', filename)) as f:
     capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
     terrain_map_name = f.readline().strip()
     world = [list(c) for c in f.read().split('\n') if c]
@@ -58,9 +61,6 @@ with open(os.path.join(os.getcwd(), '..', 'resources', 'map3.txt')) as f:
 width = len(world[0])
 height = len(world)
 tile_size = 24
-
-queueType = QueueType.CLASSIC #UserSettableParameter('choice', 'Queue', value='Default',
-                                  #choices=[QueueType.CLASSIC, QueueType.SNAKE])
 
 grid = CanvasGridWithTerrain(agent_portrayal, width, height, terrain_map_name, width*tile_size, height*tile_size)
 

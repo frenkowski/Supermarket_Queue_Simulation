@@ -75,7 +75,7 @@ class CustomerAgent(Agent):
         self.phase = AgentPhase.SHOPPING
         self.destination = None
         self.objective = None
-        
+
         # Dictionary for counting number of step in each phase of Supermarket.
         self.step_for_phase = {
             AgentPhase.PAYING: 0,
@@ -151,7 +151,7 @@ class CustomerAgent(Agent):
 
         print(self.model.queues)
         print(self.step_for_phase)
-        
+
         # Update should go at head or tail of atw method ???
         self.step_for_phase[self.phase] += 1
 
@@ -256,7 +256,7 @@ class CustomerAgent(Agent):
         ))
 
 class SupermarketModel(Model):
-    def __init__(self, N, B, world, width, height, Q=QueueType.CLASSIC):
+    def __init__(self, N, B, world, width, height, terrain_map_name, Q=QueueType.CLASSIC):
         self.world = world
         self.width = width
         self.height = height
@@ -265,7 +265,9 @@ class SupermarketModel(Model):
         self.capacity = N
         self.lane_switch_boundary = B
         self.running = True
+
         self.queue_type = QueueType[Q]
+        self.terrain_map_name = 'map3' if self.queue_type == QueueType.CLASSIC else 'map3-snake'
 
         self.finder = AStarFinder()
         self.snake_entry = None
@@ -310,7 +312,7 @@ class SupermarketModel(Model):
         self.floor_fields = {}
         for dest_label, (dest_y, dest_x) in self.cash_registers.items():
             self.floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
-            
+
         self.datacollector = DataCollector(
             model_reporters={"Agent in supermarket": agents_in_supermarket,
                              "Agent that shopping": agents_in_shopping,
@@ -335,7 +337,7 @@ class SupermarketModel(Model):
         print('Customers: {} - {}'.format(self.agents_count, len(self.schedule.agents)))
         if len(self.schedule.agents) - 4 < self.capacity and self.should_spawn_agent():
             self.schedule.add(self.create_agent())
-            
+
         self.datacollector.collect(self)
         self.schedule.step()
         #print("AGENTS IN_QUEUE_AVG_STEPS: " + str(agent_in_queue_avg_time(self)))
@@ -360,7 +362,7 @@ class SupermarketModel(Model):
                     cashier.open = False
                     self.open_cashier.remove(cashier.unique_id)
                     print('Closing cash register: {}'.format(cashier.unique_id))
-        
+
         print("OPEN CASHIER: " + str(self.open_cashier))
 
     def partition(self, elements, predicate):
@@ -452,7 +454,7 @@ def get_agents_in_phase(model, phase):
 
 
 def agents_in_queue(model):
-    # Count number of agents IN_QUEUE state.   
+    # Count number of agents IN_QUEUE state.
     agents_in_queue = get_agents_in_phase(model, [AgentPhase.IN_QUEUE])
     return len(agents_in_queue)
 
@@ -467,8 +469,8 @@ def agents_in_supermarket(model):
     # Return number of agents in supermarket.
     agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE,
                                          AgentPhase.PAYING,
-                                         AgentPhase.SHOPPING, 
-                                         AgentPhase.REACHING_QUEUE, 
+                                         AgentPhase.SHOPPING,
+                                         AgentPhase.REACHING_QUEUE,
                                          AgentPhase.SNAKE_END])
     return len(agents)
 
@@ -488,7 +490,6 @@ def agents_in_paying(model):
 def agent_in_queue_avg_time(model):
     # Count avg number of steps IN_QUEUE.
     agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE])
-    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] 
+    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE]
                    for agent in agents]
     return round(sum(agents_time) / len(agents), 2) if len(agents) != 0 else 0
-    

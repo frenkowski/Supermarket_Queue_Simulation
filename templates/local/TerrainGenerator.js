@@ -4,7 +4,8 @@ var TerrainGenerator = function(canvas_width, canvas_height, grid_width, grid_he
   const rowTileCount = grid_height;
   const colTileCount = grid_width;
   const imageNumTiles = 27;
-  const map = TileMaps[terrain_map_name];
+  current_terrain_map_name = terrain_map_name;
+  let map = TileMaps[current_terrain_map_name];
 
   let tileset = new Image();
   tileset.src = 'local/images/tileset.png';
@@ -22,4 +23,18 @@ var TerrainGenerator = function(canvas_width, canvas_height, grid_width, grid_he
       }
     }
   }
+
+  this.resetCanvas = function() {
+    this.drawTerrain();
+  }
+
+  ws.addEventListener('message', function(message) {
+    const msg = JSON.parse(message.data);
+    switch (msg["type"]) {
+      case "terrain_map_name":
+        map = TileMaps[msg['value']]
+        this.drawTerrain()
+        break;
+    }
+  }.bind(this))
 };

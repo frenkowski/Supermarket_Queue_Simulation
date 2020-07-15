@@ -207,6 +207,9 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         elif msg["type"] == "reset":
             self.application.reset_model()
             self.write_message(self.viz_state_message)
+            # Send back terrain_map_name after model update
+            response = self.application.model.terrain_map_name
+            self.write_message({ "type": "terrain_map_name", "value": response })
 
         elif msg["type"] == "submit_params":
             param = msg["param"]

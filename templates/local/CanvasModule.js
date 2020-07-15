@@ -34,6 +34,7 @@ var CanvasModule = function(canvas_width, canvas_height, grid_width, grid_height
 	};
 
 	this.reset = function() {
+		terrainDraw.resetCanvas();
 		canvasDraw.resetCanvas();
 	};
 

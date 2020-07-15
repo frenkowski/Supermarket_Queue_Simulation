@@ -51,9 +51,8 @@ def agent_portrayal(agent):
 
 queueType = UserSettableParameter('choice', 'Queue', value=QueueType.CLASSIC.name,
                                   choices=[QueueType.CLASSIC.name, QueueType.SNAKE.name])
-filename = "map3.txt" if queueType == QueueType.CLASSIC else "map3-snake.txt"
 
-with open(os.path.join(os.getcwd(), '..', 'resources', filename)) as f:
+with open(os.path.join(os.getcwd(), '..', 'resources', 'map3.txt')) as f:
     capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
     terrain_map_name = f.readline().strip()
     world = [list(c) for c in f.read().split('\n') if c]
@@ -64,8 +63,8 @@ tile_size = 24
 
 grid = CanvasGridWithTerrain(agent_portrayal, width, height, terrain_map_name, width*tile_size, height*tile_size)
 
-# Label MUST match with value of model variables added to data collector. 
-piechart_agents_num_element = PieChartModule([{"Label": "Agent in queue", 
+# Label MUST match with value of model variables added to data collector.
+piechart_agents_num_element = PieChartModule([{"Label": "Agent in queue",
                                                "Color": "#AA0000"},
                                               {"Label": "Agent that shopping",
                                                   "Color": "#FF8040"},
@@ -74,7 +73,7 @@ piechart_agents_num_element = PieChartModule([{"Label": "Agent in queue",
                                              ], 300, 300,
                                   data_collector_name='datacollector')
 
-agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA0000"}, 
+agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA0000"},
                                     {"Label": "Avg. number of agent in queue", "Color": "#0000A0"}
                                     ], data_collector_name='datacollector')
 
@@ -86,7 +85,7 @@ server = CustomModularServer(
     [grid, piechart_agents_num_element, agent_in_queue_chart, avg_time_agent_in_queue_chart],
     "Supermarket Model",
     {"N": capacity, "B": lane_switch_boundary, "world": world,
-        "width": width, "height": height, "Q": queueType}
+        "width": width, "height": height, "Q": queueType, "terrain_map_name": terrain_map_name }
 )
 
 print(server.settings)

@@ -50,7 +50,7 @@ def agent_portrayal(agent):
     raise Exception('Undefined render function for agent \'{}\''.format(type(agent)))
 
 
-with open(os.path.join(os.getcwd(), '..', 'resources', 'map3-snake.txt')) as f:
+with open(os.path.join(os.getcwd(), '..', 'resources', 'map3.txt')) as f:
     capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
     terrain_map_name = f.readline().strip()
     world = [list(c) for c in f.read().split('\n') if c]
@@ -59,7 +59,7 @@ width = len(world[0])
 height = len(world)
 tile_size = 24
 
-queueType = QueueType.SNAKE #UserSettableParameter('choice', 'Queue', value='Default',
+queueType = QueueType.CLASSIC #UserSettableParameter('choice', 'Queue', value='Default',
                                   #choices=[QueueType.CLASSIC, QueueType.SNAKE])
 
 grid = CanvasGridWithTerrain(agent_portrayal, width, height, terrain_map_name, width*tile_size, height*tile_size)
@@ -81,7 +81,6 @@ agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA000
 avg_time_agent_in_queue_chart = ChartModule([{"Label": "Avg. time spent in queue", "Color": "#408080"},
                                         ], data_collector_name='datacollector')
 
-# TODO: Add queue param for Model.
 server = CustomModularServer(
     SupermarketModel,
     [grid, piechart_agents_num_element, agent_in_queue_chart, avg_time_agent_in_queue_chart],

@@ -57,7 +57,7 @@ class CashierAgent(Agent):
         self.remaining_life = remaining_life
         self.open = remaining_life is not 0
         if self.open:
-            self.model.open_cashier += 1
+            self.model.open_cashier.add(self.unique_id)
 
     def step(self):
         if self.remaining_life > 0:
@@ -277,7 +277,7 @@ class SupermarketModel(Model):
         self.cashiers = {}
         self.cash_registers = {}
         self.agents_count = 0
-        self.open_cashier = 0
+        self.open_cashier = set()
 
         # Populate grid from world
         for y, row in enumerate(self.world):
@@ -350,6 +350,7 @@ class SupermarketModel(Model):
             if cpq >= 8:
                 coin = self.random.randint(0, len(closed) - 1)
                 closed[coin].extend_life(300)
+                self.open_cashier.add(cashier.unique_id)
                 print('Opening new cash register: {}'.format(cashier.unique_id))
 
         if len(serving) > 1:
@@ -357,7 +358,10 @@ class SupermarketModel(Model):
                 in_queue = len(self.queues[cashier.unique_id])
                 if in_queue < 3 and in_queue > 1 and (cashier.remaining_life == 0 or self.agents_count < (self.capacity / 3)):
                     cashier.open = False
+                    self.open_cashier.remove(cashier.unique_id)
                     print('Closing cash register: {}'.format(cashier.unique_id))
+        
+        print("OPEN CASHIER: " + str(self.open_cashier))
 
     def partition(self, elements, predicate):
         left, right = [], []
@@ -440,50 +444,51 @@ class Counter():
 
 
 ### FUNCTIONS FOR DATA COLLECTION ###
-# TODO: Check if we want to count number of agent in queue as number of agent in queue + agents in payment or only agent in queue (last version use only agent in queue).
+
+def get_agents_in_phase(model, phase):
+    return [agent for agent in model.schedule.agents
+            if isinstance(agent, CustomerAgent) and
+            agent.phase in phase]
+
+
 def agents_in_queue(model):
     # Count number of agents IN_QUEUE state.   
-    agents_in_queue = [agent for agent in model.schedule.agents 
-                       if isinstance(agent, CustomerAgent) and 
-                       agent.phase in [AgentPhase.IN_QUEUE]]  # Removed PAYING
+    agents_in_queue = get_agents_in_phase(model, [AgentPhase.IN_QUEUE])
     return len(agents_in_queue)
 
 
 def agents_in_queue_avg(model):
     # Return number avg num of agent in queue.
-    agents = [agent for agent in model.schedule.agents
-              if isinstance(agent, CustomerAgent) and
-              agent.phase in [AgentPhase.IN_QUEUE]]  # Removed PAYING.
-    return round(len(agents) / model.open_cashier, 2)
+    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE])
+    return round(len(agents) / len(model.open_cashier), 2)
 
 
 def agents_in_supermarket(model):
     # Return number of agents in supermarket.
-    agents = [agent for agent in model.schedule.agents if isinstance(
-        agent, CustomerAgent)]
+    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE,
+                                         AgentPhase.PAYING,
+                                         AgentPhase.SHOPPING, 
+                                         AgentPhase.REACHING_QUEUE, 
+                                         AgentPhase.SNAKE_END])
     return len(agents)
 
 
 def agents_in_shopping(model):
-    # Return number of agents that shopping.
-    agents = [agent for agent in model.schedule.agents if isinstance(
-        agent, CustomerAgent) and agent.phase in [AgentPhase.SHOPPING]]
+    # Return number of agents that SHOPPING.
+    agents = get_agents_in_phase(model, [AgentPhase.SHOPPING])
     return len(agents)
 
 
 def agents_in_paying(model):
     # Count number of agents in PAYING state.
-    agents_in_queue = [agent for agent in model.schedule.agents
-                       if isinstance(agent, CustomerAgent) and
-                       agent.phase in [AgentPhase.PAYING]]
+    agents_in_queue = get_agents_in_phase(model, [AgentPhase.PAYING])
     return len(agents_in_queue)
 
 
 def agent_in_queue_avg_time(model):
-    # Count avg number of steps IN_QUEUE and PAYING.
-    agents = agents_in_queue(model)
-    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] #+ 
-                   #agent.step_for_phase[AgentPhase.PAYING] 
-                   for agent in model.schedule.agents if isinstance(agent, CustomerAgent)]
-    return round(sum(agents_time) / agents, 2) if agents != 0 else 0
+    # Count avg number of steps IN_QUEUE.
+    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE])
+    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] 
+                   for agent in agents]
+    return round(sum(agents_time) / len(agents), 2) if len(agents) != 0 else 0
     

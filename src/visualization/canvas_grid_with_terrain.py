@@ -30,7 +30,6 @@ class CanvasGridWithTerrain(CanvasGrid):
         self.canvas_width = canvas_width
         self.canvas_height = canvas_height
 
-        self.local_includes.append('terrains/{}.js'.format(terrain_map_name))
         new_element = "new CanvasModule({}, {}, {}, {}, '{}')".format(
             self.canvas_width, self.canvas_height, self.grid_width, self.grid_height, terrain_map_name
         )

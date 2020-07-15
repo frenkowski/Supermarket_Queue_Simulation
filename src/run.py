@@ -13,7 +13,7 @@ from model import *
 
 def agent_portrayal(agent):
     if isinstance(agent, ObstacleAgent):
-        return {}
+        # return {}
         return {
             "Shape": "rect",
             "Filled": "true",

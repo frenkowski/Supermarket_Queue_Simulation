@@ -1,15 +1,15 @@
 import os
-import numpy as np
 
 from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules.ChartVisualization import ChartModule
-from mesa.visualization.modules.TextVisualization import TextElement
 from mesa.visualization.modules.PieChartVisualization import PieChartModule
+from mesa.visualization.modules.TextVisualization import TextElement
 from mesa.visualization.UserParam import UserSettableParameter
+import numpy as np
 
-from visualization.canvas_grid_with_terrain import CanvasGridWithTerrain
-from server import CustomModularServer
 from model import *
+from server import CustomModularServer
+from visualization.canvas_grid_with_terrain import CanvasGridWithTerrain
 
 def agent_portrayal(agent):
     if isinstance(agent, ObstacleAgent):

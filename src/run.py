@@ -52,7 +52,7 @@ def agent_portrayal(agent):
 queueType = UserSettableParameter('choice', 'Queue', value=QueueType.CLASSIC.name,
                                   choices=[QueueType.CLASSIC.name, QueueType.SNAKE.name])
 
-with open(os.path.join(os.getcwd(), '..', 'resources', 'map3.txt')) as f:
+with open(os.path.join(os.getcwd(), '..', 'resources', 'map3-snake.txt')) as f:
     capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
     terrain_map_name = f.readline().strip()
     world = [list(c) for c in f.read().split('\n') if c]

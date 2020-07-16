@@ -322,6 +322,7 @@ class SupermarketModel(Model):
         self.cash_registers = {}
         self.agents_count = 0
         self.open_cashier = set()
+        self.avg_agents_to_open_cashier = 8 if self.queue_type == QueueType.CLASSIC else 7 # ADDED VARIABLE. 
 
         # Populate grid from world
         for y, row in enumerate(self.world):
@@ -400,7 +401,7 @@ class SupermarketModel(Model):
 
         serving, closed = self.partition(self.cashiers.values(), lambda c: c.open)
         if len(serving) > 0 and len(closed) > 0:
-            if agents_in_queue_avg(self) >= 8:
+            if agents_in_queue_avg(self) >= self.avg_agents_to_open_cashier: # ADDED variable!
                 coin = self.random.randint(0, len(closed) - 1)
                 cashier = closed[coin]
                 cashier.extend_life(300)
@@ -411,10 +412,22 @@ class SupermarketModel(Model):
             if len(serving) > 1:
                 for cashier in serving:
                     in_queue = len(self.queues[cashier.unique_id])
-                    if in_queue < 3 and in_queue > 1 and (cashier.remaining_life == 0 or self.agents_count < (self.capacity / 3)):
+                    if in_queue < 3 and in_queue > 1 and (cashier.remaining_life == 0 or self.agents_count < (self.capacity / 3)): # Agents count con conta numero tatale agenti generati?
                         cashier.open = False
                         self.open_cashier.remove(cashier.unique_id)
                         print('Closing cash register: {}'.format(cashier.unique_id))
+                        
+        if self.queue_type == QueueType.SNAKE:
+            avg_agents_in_queue = agents_in_queue_avg(self)
+            if len(serving) > 1 and avg_agents_in_queue < 3:
+                to_close = [c for c in serving if c.remaining_life == 0]
+                if len(to_close) == 0:
+                    coin = self.random.randint(0, len(serving) - 1)
+                    self.close_cashier(serving[coin])
+                    
+                else:
+                    coin = self.random.randint(0, len(to_close) - 1)
+                    self.close_cashier(to_close[coin])
 
         # elif self.queue_type == QueueType.SNAKE:
         #     if len(serving) > 0 and len(closed) > 0:
@@ -424,6 +437,10 @@ class SupermarketModel(Model):
         #             self.open_cashier.add(cashier.unique_id)
         #             print('Opening new cash register: {}'.format(cashier.unique_id))
 
+    def close_cashier(self, cashier):
+        cashier.open = False
+        self.open_cashier.remove(cashier.unique_id)
+        print('Closing cash register: {}'.format(cashier.unique_id))
 
     def partition(self, elements, predicate):
         left, right = [], []

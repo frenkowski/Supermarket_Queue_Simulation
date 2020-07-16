@@ -328,7 +328,7 @@ class SupermarketModel(Model):
         for y, row in enumerate(self.world):
             for x, cell in enumerate(row):
                 if cell == 'X':
-                    self.grid[x][y] = ObstacleAgent(str(y)+str(x), self)
+                    self.grid[x][y] = ObstacleAgent(str(y) + str(x), self)
                 elif cell == 'S':
                     self.snake_entry = (x, y)
                 elif cell == 'Z':
@@ -490,8 +490,7 @@ class SupermarketModel(Model):
 
 def get_agents_in_phase(model, phase):
     return [agent for agent in model.schedule.agents
-            if isinstance(agent, CustomerAgent) and
-            agent.phase in phase]
+            if isinstance(agent, CustomerAgent) and agent.phase in phase]
 
 
 def agents_in_queue(model):

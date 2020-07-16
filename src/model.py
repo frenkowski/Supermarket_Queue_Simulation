@@ -20,7 +20,7 @@ class AgentPhase(Enum):
     SHOPPING = 0
     REACHING_QUEUE = 1
     IN_QUEUE = 2
-    SNAKE_END = 3
+    SNAKE_REACHING_CASHIER = 3
     PAYING = 4
 
 
@@ -29,7 +29,7 @@ class Counter():
         self.count = start
 
     def __repr__(self):
-        return str(self.count)
+        return str(int(self.count))
 
     def is_expired(self):
         return self.count <= 0
@@ -50,11 +50,14 @@ class ObstacleAgent(Agent):
 class CashierAgent(Agent):
     def __init__(self, unique_id, model, remaining_life=300, pos=None):
         super().__init__(unique_id, model)
-        self.extend_life(remaining_life)
+        self.set_life(remaining_life)
         self.pos = pos
         self.is_busy = False
 
-    def extend_life(self, remaining_life):
+    def __repr__(self):
+        return 'Cashier: {} - Position: {}'.format(self.unique_id, self.pos)
+
+    def set_life(self, remaining_life):
         self.remaining_life = remaining_life
         self.open = remaining_life != 0
         if self.open:
@@ -64,38 +67,37 @@ class CashierAgent(Agent):
         if self.remaining_life > 0:
             self.remaining_life -= 1
 
-    def __repr__(self):
-        return 'Cash: {} - Pos: {}'.format(self.unique_id, self.pos)
-
 
 class CustomerAgent(Agent):
     def __init__(self, unique_id, model, sprite):
         super().__init__(unique_id, model)
         self.sprite = sprite
-        self.n_prod = np.random.normal(self.model.capacity / 2, self.model.capacity / 4)
 
-        self.shopping_time = Counter(3 + self.n_prod * 0.75)
-        self.paying_time = Counter(1 + self.n_prod * 0.25)
+        self.products_count = np.random.normal(self.model.capacity / 2, self.model.capacity / 4)
+        self.shopping_time = Counter(3 + self.products_count * 0.75)
+        self.paying_time = Counter(1 + self.products_count * 0.25)
+
         self.phase = AgentPhase.SHOPPING
-        self.destination = None
         self.objective = None
+        self.destination = None
 
         # Dictionary for counting number of step in each phase of Supermarket.
         self.step_for_phase = {
-            AgentPhase.PAYING: 0,
             AgentPhase.SHOPPING: 1,
+            AgentPhase.REACHING_QUEUE: 0,
             AgentPhase.IN_QUEUE: 0,
-            AgentPhase.SNAKE_END: 0,
-            AgentPhase.REACHING_QUEUE: 0
+            AgentPhase.SNAKE_REACHING_CASHIER: 0,
+            AgentPhase.PAYING: 0,
         }
 
     def step(self):
-        # self.print_agent_info()
+        print(self)
+        self.step_for_phase[self.phase] += 1
 
         if self.phase == AgentPhase.SHOPPING:
             if not self.shopping_time.is_expired():
                 self.shopping_time.decrement()
-            elif self.decide_spawn_point():
+            elif self.random_spawn_point():
                 self.phase = AgentPhase.REACHING_QUEUE
 
         elif self.phase == AgentPhase.REACHING_QUEUE:
@@ -108,16 +110,16 @@ class CustomerAgent(Agent):
                 # Try to reach queue
                 self.model.grid.move_agent(self, (dest_x, dest_y))
                 if self.has_reached_destination():
-                    self.model.queues[self.objective].add(self.unique_id)
+                    self.enqueue()
                     self.phase = AgentPhase.IN_QUEUE
 
             elif self.model.queue_type == QueueType.SNAKE:
                 self.destination = self.model.snake_entry
 
-                self.model.as_grid.cleanup()
-                start = self.model.as_grid.node(*self.pos)
-                end = self.model.as_grid.node(*self.destination)
-                path, _ = self.model.finder.find_path(start, end, self.model.as_grid)
+                self.model.movement_grid.cleanup()
+                start = self.model.movement_grid.node(*self.pos)
+                end = self.model.movement_grid.node(*self.destination)
+                path, _ = self.model.finder.find_path(start, end, self.model.movement_grid)
 
                 dest_x, dest_y = path[1]
                 if self.model.grid[dest_x][dest_y] is not None:
@@ -136,36 +138,38 @@ class CustomerAgent(Agent):
                 if (x + 1, y) in self.model.cash_registers.values():
                     self.phase = AgentPhase.PAYING
                     return
-                # Move vertically in queue
-                if self.model.grid[x][y + 1] is not None:
-                    return
 
-                self.model.grid.move_agent(self, (x, y + 1))
+                # Move vertically in queue
+                if self.model.grid[x][y + 1] is None:
+                    self.model.grid.move_agent(self, (x, y + 1))
+
             if self.model.queue_type == QueueType.SNAKE:
                 self.destination = self.model.snake_exit
 
-                self.model.as_grid.cleanup()
-                start = self.model.as_grid.node(*self.pos)
-                end = self.model.as_grid.node(*self.destination)
-                path, _ = self.model.finder.find_path(start, end, self.model.as_grid)
+                self.model.movement_grid.cleanup()
+                start = self.model.movement_grid.node(*self.pos)
+                end = self.model.movement_grid.node(*self.destination)
+                path, _ = self.model.finder.find_path(start, end, self.model.movement_grid)
 
                 dest_x, dest_y = path[1]
                 if self.model.grid[dest_x][dest_y] is not None:
                     return
 
                 # Try to reach queue
+                self.step_for_phase[self.phase] -= 1
                 self.model.grid.move_agent(self, path[1])
                 if self.has_reached_destination():
-                    self.phase = AgentPhase.SNAKE_END
+                    self.phase = AgentPhase.SNAKE_REACHING_CASHIER
 
-        elif self.phase == AgentPhase.SNAKE_END:
+        elif self.phase == AgentPhase.SNAKE_REACHING_CASHIER:
             if self.pos == self.destination:
                 return
 
-            self.model.as_grid.cleanup()
-            start = self.model.as_grid.node(*self.pos)
-            end = self.model.as_grid.node(*self.destination)
-            path, _ = self.model.finder.find_path(start, end, self.model.as_grid)
+            self.step_for_phase[self.phase] -= 1
+            self.model.movement_grid.cleanup()
+            start = self.model.movement_grid.node(*self.pos)
+            end = self.model.movement_grid.node(*self.destination)
+            path, _ = self.model.finder.find_path(start, end, self.model.movement_grid)
 
             dest_x, dest_y = path[1]
             if self.model.grid[dest_x][dest_y] is not None:
@@ -181,21 +185,23 @@ class CustomerAgent(Agent):
                 self.paying_time.decrement()
             else:
                 if self.model.queue_type == QueueType.CLASSIC:
-                    self.model.queues[self.objective].remove(self.unique_id)
-                else:
+                    self.dequeue()
+                elif self.model.queue_type == QueueType.SNAKE:
                     self.model.cashiers[self.objective].is_busy = False
 
-                self.objective = None
                 self.model.grid.remove_agent(self)
                 self.model.schedule.remove(self)
 
         # print(self.model.queues)
         # print(self.step_for_phase)
 
-        # Update should go at head or tail of atw method ???
-        self.step_for_phase[self.phase] += 1
+    def enqueue(self):
+        self.model.queues[self.objective].add(self.unique_id)
 
-    def decide_spawn_point(self):
+    def dequeue(self):
+        self.model.queues[self.objective].remove(self.unique_id)
+
+    def random_spawn_point(self):
         coin = self.random.randint(0, len(self.model.entry_points) - 1)
 
         x, y, _ = self.model.entry_points[coin]
@@ -206,76 +212,64 @@ class CustomerAgent(Agent):
         return False
 
     def decide_destination(self):
-        possible_steps = self.model.grid.get_neighborhood(
+        neighbour_cells = self.model.grid.get_neighborhood(
             self.pos,
             moore=True,
             include_center=True
         )
+        selected_move = self.find_best_move(neighbour_cells)
 
-        selected_move = self.find_best_move(possible_steps)
-        self.update_objective(selected_move['destination'])
+        self.update_objective(selected_move['objective'])
         self.destination = self.find_queue_start_position()
 
-        return self.get_move_towards_destination()
+        return self.next_move()
 
-    def get_move_towards_destination(self):
-        dest_col, dest_row = self.destination
-
-        x, y = self.pos
-        x_direction = -1 if x > dest_col else 1
-        y_direction = -1 if y > dest_row else 1
-
-        if x != dest_col:
-            return (x + x_direction, y)
-
-        return (x, y + y_direction)
-
-    def find_best_move(self, possible_steps):
+    def find_best_move(self, cells):
         destinations = []
-        for destination, floor_field in self.model.floor_fields.items():
-            if not self.is_cash_register_open(destination):
-                continue
+        for objective, floor_field in self.model.floor_fields.items():
+            if self.is_cash_register_open(objective):
+                candidates = [floor_field[row, col] for col, row in cells]
 
-            candidates = [floor_field[y, x] for x, y in possible_steps]
-
-            x, y = possible_steps[np.argmin(candidates)]
-            destinations.append({
-                'destination': destination,
-                'move': (x, y),
-                'cost': floor_field[y, x]
-            })
+                x, y = cells[np.argmin(candidates)]
+                destinations.append({
+                    'objective': objective,
+                    'cost': floor_field[y, x]
+                })
 
         if self.pos[1] <= (self.model.height - self.model.lane_switch_boundary):
             for destination in destinations:
-                destination['cost'] += len(self.model.queues[destination['destination']])
-                if self.objective == destination['destination']:
-                    destination['cost'] -= 1
+                destination['cost'] += len(self.model.queues[destination['objective']])
 
         return min(destinations, key=lambda x: x['cost'])
 
+    def update_objective(self, objective):
+        old_objective = self.objective
+
+        if old_objective is not None and objective != old_objective:
+            print("changing destination", old_objective, objective)
+            if self.unique_id in self.model.queues[old_objective]:
+                self.dequeue()
+
+        self.objective = objective
+
+    def next_move(self):
+        dest_col, dest_row = self.destination
+
+        col, row = self.pos
+        h_direction = -1 if col > dest_col else 1
+        v_direction = -1 if row > dest_row else 1
+
+        if col != dest_col:
+            return (col + h_direction, row)
+
+        return (col, row + v_direction)
+
     def is_cash_register_open(self, destination):
-        cash_register_y, cash_register_x = self.model.cash_registers[destination]
-        return self.model.grid[cash_register_y][cash_register_x].open
+        col, row = self.model.cash_registers[destination]
+        return self.model.grid[col][row].open
 
     def has_reached_destination(self):
         return self.pos == self.destination
-
-    def has_reached_cash_register_queue(self, pos):
-        queue_col, queue_row = self.find_queue_start_position()
-        return pos == (queue_col, queue_row)
-
-    def update_objective(self, target):
-        old_destination = self.objective
-
-        # if not self.objective:
-        #     self.model.queues[target].add(self.unique_id)
-
-        if old_destination and target != old_destination:
-            print("changing destination", old_destination, target)
-            if self.unique_id in self.model.queues[old_destination]:
-                self.model.queues[old_destination].remove(self.unique_id)
-
-        self.objective = target
 
     def find_queue_start_position(self):
         col, row = self.model.cash_registers[self.objective]
@@ -285,63 +279,71 @@ class CustomerAgent(Agent):
 
         return (col, row)
 
-    def print_agent_info(self):
-        print('AGENT: {}/{} - PRODS: {} - SHOP_TIME: {} - CURRENT: {} - OBJ: {} - DEST: {}'.format(
+    def __repr__(self):
+        return 'AGENT: {}/{} - PROD COUNT: {} - SHOP_TIME: {} - POS: {} - OBJ: {} - DEST: {}'.format(
             self.unique_id,
             self.phase.name,
-            self.n_prod,
+            self.products_count,
             self.shopping_time,
             self.pos,
             self.objective,
             self.destination
-        ))
+        )
 
 
 class SupermarketModel(Model):
-    def __init__(self, N, B, world, width, height, terrain_map_name, Q=QueueType.CLASSIC):
+    def __init__(self, capacity, boundary, world, width, height, terrain_map_name, type=QueueType.CLASSIC):
+        # Mesa internals
+        self.running = True
+
+        # World related
         self.world = world
         self.width = width
         self.height = height
         self.grid = SingleGrid(width, height, True)
-        self.schedule = BaseScheduler(self)
-        self.capacity = N
-        self.lane_switch_boundary = B
-        self.running = True
-
-        self.queue_type = QueueType[Q]
+        self.queue_type = QueueType[type]
         self.terrain_map_name = 'map3' if self.queue_type == QueueType.CLASSIC else 'map3-snake'
+        self.lane_switch_boundary = boundary
 
+        # Agent related
+        self.agents_count = 0
+        self.schedule = BaseScheduler(self)
+        self.capacity = capacity
+
+        self.entry_points = []
+        self.queues = {}
+        self.queue_entry_points = {}
+        self.queue_length_limit = 7
+        self.cashiers = {}
+        # TODO: Merge position (cash_registers) and open
+        # attribute (open_cashier) with cashiers dict
+        self.cash_registers = {}
+        self.open_cashier = set()
+
+        # Pathfinding
         self.finder = AStarFinder()
         self.snake_entry = None
         self.snake_exit = None
 
-        self.queues = {}
-        self.entry_points = []
-        self.queue_entry_points = {}
-        self.cashiers = {}
-        self.cash_registers = {}
-        self.agents_count = 0
-        self.open_cashier = set()
-        self.avg_agents_to_open_cashier = 7
-
         # Populate grid from world
-        for y, row in enumerate(self.world):
-            for x, cell in enumerate(row):
+        for col, line in enumerate(self.world):
+            for row, cell in enumerate(line):
                 if cell == 'X':
-                    self.grid[x][y] = ObstacleAgent(str(y) + str(x), self)
+                    self.grid[row][col] = ObstacleAgent('{}:{}'.format(col, row), self)
                 elif cell == 'S':
-                    self.snake_entry = (x, y)
+                    self.snake_entry = (row, col)
                 elif cell == 'Z':
-                    self.snake_exit = (x, y)
+                    self.snake_exit = (row, col)
                 elif cell in ['1', '2', '3', '4', '5']:
-                    agent = CashierAgent(cell, self, 0, (x, y))
-                    self.cashiers[cell] = self.grid[x][y] = agent
-                    self.schedule.add(agent)
-                    self.cash_registers[cell] = (x, y)
+                    agent = CashierAgent(cell, self, 0, (row, col))
+                    self.cashiers[cell] = self.grid[row][col] = agent
+                    self.cash_registers[cell] = (row, col)
                     self.queues[cell] = set()
-                    self.queue_entry_points[cell] = (x, y - self.lane_switch_boundary)
+                    self.queue_entry_points[cell] = (row, col - self.lane_switch_boundary)
+                    # TODO: Add (remove) only upon cashier opening (closing)
+                    self.schedule.add(agent)
                 elif cell in ['A', 'B', 'C', 'D', 'E']:
-                    self.entry_points.append((x, y, cell))
+                    self.entry_points.append((row, col, cell))
 
         world_matrix = np.matrix(self.world)
         self.distance_matrix = np.zeros((self.height, self.width))
@@ -371,10 +373,10 @@ class SupermarketModel(Model):
             self.distance_matrix[world_matrix == '3'] = 1
             self.distance_matrix[world_matrix == '4'] = 1
             self.distance_matrix[world_matrix == '5'] = 1
-            self.as_grid = Grid(matrix=self.distance_matrix, inverse=True)
+            self.movement_grid = Grid(matrix=self.distance_matrix, inverse=True)
 
         coin = self.random.randint(1, len(self.cashiers) - 1)
-        self.cashiers[str(coin)].extend_life(300)
+        self.cashiers[str(coin)].set_life(300)
 
     def step(self):
         print('Customers: {} - {}'.format(self.agents_count, len(self.schedule.agents)))
@@ -401,10 +403,10 @@ class SupermarketModel(Model):
 
         serving, closed = self.partition(self.cashiers.values(), lambda c: c.open)
         if len(serving) > 0 and len(closed) > 0:
-            if agents_in_queue_avg(self) >= self.avg_agents_to_open_cashier:
+            if agents_in_queue_avg(self) >= self.queue_length_limit:
                 coin = self.random.randint(0, len(closed) - 1)
                 cashier = closed[coin]
-                cashier.extend_life(300)
+                cashier.set_life(300)
                 self.open_cashier.add(cashier.unique_id)
                 print('Opening new cash register: {}'.format(cashier.unique_id))
 
@@ -495,13 +497,13 @@ def get_agents_in_phase(model, phase):
 
 def agents_in_queue(model):
     """ Count number of agents IN_QUEUE state. """
-    agents_in_queue = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_END])
+    agents_in_queue = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER])
     return len(agents_in_queue)
 
 
 def agents_in_queue_avg(model):
     """ Return number avg num of agent in queue. """
-    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_END])
+    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER])
     return round(len(agents) / len(model.open_cashier), 2)
 
 
@@ -511,7 +513,7 @@ def agents_in_supermarket(model):
                                          AgentPhase.PAYING,
                                          AgentPhase.SHOPPING,
                                          AgentPhase.REACHING_QUEUE,
-                                         AgentPhase.SNAKE_END])
+                                         AgentPhase.SNAKE_REACHING_CASHIER])
     return len(agents)
 
 
@@ -529,7 +531,7 @@ def agents_in_paying(model):
 
 def agent_in_queue_avg_time(model):
     """ Count avg number of steps IN_QUEUE. """
-    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_END])
-    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.SNAKE_END]
+    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER])
+    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
                    for agent in agents]
     return round(sum(agents_time) / len(agents), 2) if len(agents) != 0 else 0

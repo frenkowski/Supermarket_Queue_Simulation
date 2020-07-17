@@ -412,10 +412,8 @@ class SupermarketModel(Model):
         self.schedule.step()
 
         opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
-        print(closed)
         if len(closed) > 0:
-            print(get_avg_queued_agents(self))
-            if get_avg_queued_agents(self) >= self.queue_length_limit:
+            if  len(get_agents_in_phase(self, [AgentPhase.REACHING_QUEUE, AgentPhase.IN_QUEUE])) / len(opened) >= self.queue_length_limit:
                 coin = self.random.randint(0, len(closed) - 1)
                 cashier = closed[coin]
                 cashier.set_life()
@@ -426,7 +424,7 @@ class SupermarketModel(Model):
             if self.queue_type == QueueType.CLASSIC:
                 for cashier in opened:
                     in_queue = len(self.queues[cashier.unique_id])
-                    if in_queue < math.floor(self.queue_length_limit / 2) and in_queue > 1 and (cashier.remaining_life == 0 or self.current_agents < (self.capacity / 3)):
+                    if in_queue < math.floor(self.queue_length_limit / 2) and in_queue > 1 and (cashier.remaining_life == 0 and self.current_agents < (self.capacity / 3)):
                         self.close_cashier(cashier)
                         opened.remove(cashier)
                         [cashier.set_life(cashier.remaining_life + 50) for cashier in opened]
@@ -434,7 +432,7 @@ class SupermarketModel(Model):
 
             elif self.queue_type == QueueType.SNAKE:
                 if get_avg_queued_agents(self) < math.floor(self.queue_length_limit / 2):
-                    to_close = [c for c in opened if c.remaining_life == 0 or self.current_agents < (self.capacity / 3)]
+                    to_close = [c for c in opened if c.remaining_life == 0 and self.current_agents < (self.capacity / 3)]
                     if len(to_close) > 0:
                         coin = self.random.randint(0, len(to_close) - 1)
                         cashier = to_close[coin]
@@ -506,7 +504,7 @@ class SupermarketModel(Model):
 
 
 def get_agents_in_phase(model, phases):
-    """ Retrieve agents in the specified phase(phasess) """
+    """ Retrieve agents in the specified phase(phases) """
     return [agent for agent in model.schedule.agents
             if isinstance(agent, CustomerAgent) and agent.phase in phases]
 

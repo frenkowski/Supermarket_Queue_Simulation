@@ -463,7 +463,7 @@ class SupermarketModel(Model):
         # Attempt: \frac{1}{16\cos^{2}\left(\pi x\right)+1}
         relative_time = self.schedule.steps % self.steps_in_day
         prob = (-math.cos(relative_time * np.pi / (self.steps_in_day / 2)) + 1) / 2
-        return self.random.random() <= prob
+        return self.random.random() <= 0.75 if self.random.random() <= prob else False
 
     def random_sprite(self):
         sprites = [

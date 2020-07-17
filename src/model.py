@@ -1,4 +1,5 @@
 import math
+import os
 
 from colorama import Fore, Back
 from enum import Enum
@@ -300,25 +301,26 @@ class CustomerAgent(Agent):
 
 
 class SupermarketModel(Model):
-    def __init__(self, map_size, capacity, boundary, world, width, height, terrain_map_name, type=QueueType.CLASSIC):
+    def __init__(self, type=QueueType.CLASSIC):
         # Mesa internals
         self.running = True
         self.steps_in_day = 1440
 
         # World related
-        self.map_size = map_size
-        self.world = world
-        self.width = width
-        self.height = height
-        self.grid = SingleGrid(width, height, True)
         self.queue_type = QueueType[type]
-        self.terrain_map_name = 'map3' if self.queue_type == QueueType.CLASSIC else 'map3-snake'
-        self.lane_switch_boundary = boundary
+        self.terrain_map_name = 'map' if self.queue_type == QueueType.CLASSIC else 'map_snake'
+        with open(os.path.join(os.getcwd(), '..', 'resources', '{}.txt'.format(self.terrain_map_name))) as f:
+            self.width, self.height = map(int, f.readline().strip().split(' '))
+            self.capacity, self.lane_switch_boundary = map(int, f.readline().strip().split(' '))
+            # Skip third txt line with terrain map name (unneeded in model)
+            f.readline().strip()
+            self.world = [list(c) for c in f.read().split('\n') if c]
+
+        self.grid = SingleGrid(self.width, self.height, True)
 
         # Agent related
         self.generated_customers_count = 0
         self.schedule = BaseScheduler(self)
-        self.capacity = capacity
 
         self.entry_points = []
         self.queues = {}
@@ -412,6 +414,7 @@ class SupermarketModel(Model):
         opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
         print(closed)
         if len(closed) > 0:
+            print(get_avg_queued_agents(self))
             if get_avg_queued_agents(self) >= self.queue_length_limit:
                 coin = self.random.randint(0, len(closed) - 1)
                 cashier = closed[coin]

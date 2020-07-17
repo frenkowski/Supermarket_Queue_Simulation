@@ -51,11 +51,19 @@ class ObstacleAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
 
-    def step(self):
-        pass
-
 
 class CashierAgent(Agent):
+    def __init__(self, unique_id, model, pos, cash_register):
+        super().__init__(unique_id, model)
+        self.pos = pos
+        self.cash_register = cash_register
+
+    @property
+    def working(self):
+        return self.cash_register.open
+
+
+class CashRegisterAgent(Agent):
     def __init__(self, unique_id, model, pos=None):
         super().__init__(unique_id, model)
         self.set_life(0)
@@ -67,13 +75,15 @@ class CashierAgent(Agent):
 
     def set_life(self, life=180):
         self.remaining_life = life
-        self.open = life != 0
+        self.open = life > 0
         if self.open:
             self.model.open_cashier.add(self.unique_id)
 
     def step(self):
         if self.remaining_life > 0:
             self.remaining_life -= 1
+        elif self.remaining_life < 0:
+            self.remaining_life += 1
 
 
 class CustomerAgent(Agent):
@@ -346,12 +356,15 @@ class SupermarketModel(Model):
                 elif cell == 'Z':
                     self.snake_exit = (row, col)
                 elif cell in ['1', '2', '3', '4', '5']:
-                    agent = CashierAgent(cell, self, (row, col))
-                    self.cashiers[cell] = self.grid[row][col] = agent
+                    cash_register = CashRegisterAgent(cell, self, (row, col))
+                    self.cashiers[cell] = self.grid[row][col] = cash_register
                     self.cash_registers[cell] = (row, col)
                     self.queues[cell] = set()
                     # TODO: Add (remove) only upon cashier opening (closing)
-                    self.schedule.add(agent)
+                    self.schedule.add(cash_register)
+
+                    cashier = CashierAgent('Y{}'.format(cell), self, (row + 1, col), cash_register)
+                    self.grid[row + 1][col] = cashier
                 elif cell in ['A', 'B', 'C', 'D', 'E']:
                     self.entry_points.append((row, col, cell))
 
@@ -363,6 +376,7 @@ class SupermarketModel(Model):
         self.distance_matrix[world_matrix == '3'] = np.inf
         self.distance_matrix[world_matrix == '4'] = np.inf
         self.distance_matrix[world_matrix == '5'] = np.inf
+        self.distance_matrix[world_matrix == 'Y'] = np.inf
 
         self.floor_fields = {}
         for dest_label, (dest_col, dest_row) in self.cash_registers.items():
@@ -383,6 +397,7 @@ class SupermarketModel(Model):
             self.distance_matrix[world_matrix == '3'] = 1
             self.distance_matrix[world_matrix == '4'] = 1
             self.distance_matrix[world_matrix == '5'] = 1
+            self.distance_matrix[world_matrix == 'Y'] = 1
             self.movement_grid = Grid(matrix=self.distance_matrix, inverse=True)
 
         coin = self.random.randint(1, len(self.cashiers) - 1)
@@ -413,12 +428,13 @@ class SupermarketModel(Model):
 
         opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
         if len(closed) > 0:
-            if  len(get_agents_in_phase(self, [AgentPhase.REACHING_QUEUE, AgentPhase.IN_QUEUE])) / len(opened) >= self.queue_length_limit:
+            if len(get_agents_in_phase(self, [AgentPhase.REACHING_QUEUE, AgentPhase.IN_QUEUE])) / len(opened) >= self.queue_length_limit:
                 coin = self.random.randint(0, len(closed) - 1)
                 cashier = closed[coin]
-                cashier.set_life()
-                self.open_cashier.add(cashier.unique_id)
-                print(Back.WHITE + Fore.GREEN + 'OPENING NEW CASH_REGISTER: {}'.format(cashier.unique_id))
+                if cashier.remaining_life == 0:
+                    cashier.set_life()
+                    self.open_cashier.add(cashier.unique_id)
+                    print(Back.WHITE + Fore.GREEN + 'OPENING NEW CASH_REGISTER: {}'.format(cashier.unique_id))
 
         if len(opened) > 1:
             if self.queue_type == QueueType.CLASSIC:
@@ -427,7 +443,8 @@ class SupermarketModel(Model):
                     if in_queue < math.floor(self.queue_length_limit / 2) and in_queue > 1 and (cashier.remaining_life == 0 and self.current_agents < (self.capacity / 3)):
                         self.close_cashier(cashier)
                         opened.remove(cashier)
-                        [cashier.set_life(cashier.remaining_life + 50) for cashier in opened]
+                        cashier.set_life(-90)
+                        [cashier.set_life(cashier.remaining_life + 25) for cashier in opened]
                         break
 
             elif self.queue_type == QueueType.SNAKE:
@@ -439,7 +456,8 @@ class SupermarketModel(Model):
 
                         self.close_cashier(cashier)
                         opened.remove(cashier)
-                        [cashier.set_life(cashier.remaining_life + 50) for cashier in opened]
+                        cashier.set_life(-90)
+                        [cashier.set_life(cashier.remaining_life + 25) for cashier in opened]
 
     def close_cashier(self, cashier):
         cashier.open = False

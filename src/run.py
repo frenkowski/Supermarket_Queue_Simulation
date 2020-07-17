@@ -5,7 +5,7 @@ from mesa.visualization.modules.ChartVisualization import ChartModule
 from mesa.visualization.modules.PieChartVisualization import PieChartModule
 from mesa.visualization.UserParam import UserSettableParameter
 
-from model import CashierAgent, CustomerAgent, MapSize, ObstacleAgent, QueueType, SupermarketModel
+from model import CashierAgent, CashRegisterAgent, CustomerAgent, MapSize, ObstacleAgent, QueueType, SupermarketModel
 from server import CustomModularServer
 from visualization.canvas_grid_with_terrain import CanvasGridWithTerrain
 
@@ -27,7 +27,17 @@ def agent_portrayal(agent):
     if isinstance(agent, CashierAgent):
         return {
             "Shape": "sprite",
-            "sprite": "images/characters/cashier" if agent.open else None,
+            "sprite": "images/characters/cashier" if agent.working else None,
+            "Filled": "true",
+            "Layer": 1,
+            "w": 1,
+            "h": 1,
+        }
+
+    if isinstance(agent, CashRegisterAgent):
+        return {
+            "Shape": "sprite",
+            "sprite": "images/characters/cash-register" if agent.open else None,
             "Filled": "true",
             "Layer": 1,
             "w": 1,

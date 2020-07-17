@@ -54,7 +54,7 @@ queue_type = UserSettableParameter('choice', 'Queue Type', value=QueueType.CLASS
 map_size = UserSettableParameter('choice', 'Map Size', value=MapSize.SMALL.name,
                                  choices=[MapSize.SMALL.name, MapSize.MEDIUM.name, MapSize.LARGE.name])
 
-with open(os.path.join(os.getcwd(), '..', 'resources', 'map3-snake.txt')) as f:
+with open(os.path.join(os.getcwd(), '..', 'resources', 'map3.txt')) as f:
     capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
     terrain_map_name = f.readline().strip()
     world = [list(c) for c in f.read().split('\n') if c]
@@ -66,26 +66,27 @@ tile_size = 24
 grid = CanvasGridWithTerrain(agent_portrayal, width, height, terrain_map_name, width * tile_size, height * tile_size)
 
 # Label MUST match with value of model variables added to data collector.
-piechart_agents_num_element = PieChartModule([{"Label": "Queued",
-                                               "Color": "#AA0000"},
-                                              {"Label": "Shopping",
-                                                  "Color": "#FF8040"},
+num_agents_phases_piechart = PieChartModule([{"Label": "Shopping",
+                                               "Color": "#008000"},
+                                              {"Label": "Queued",
+                                               "Color": "#ff8c00"},
                                               {"Label": "Paying",
-                                                  "Color": "#800000"}
+                                               "Color": "#dc143c"}
                                               ], 300, 300, data_collector_name='datacollector')
 
-agent_in_queue_chart = ChartModule([{"Label": "Queued", "Color": "#AA0000"},
-                                    {"Label": "Queued (AVG)", "Color": "#0000A0"}
+agent_in_queue_chart = ChartModule([{"Label": "Queued", "Color": "#ff8c00"},
+                                    {"Label": "Queued (AVG)", "Color": "#00008b"}
                                     ], data_collector_name='datacollector')
 
-avg_time_agent_in_queue_chart = ChartModule([{"Label": "Queued Time (AVG)", "Color": "#408080"}],
+avg_agent_time_in_queue_chart = ChartModule([{"Label": "Queued Time (AVG)", "Color": "#008b8b"}],
                                             data_collector_name='datacollector')
 
 server = CustomModularServer(
     SupermarketModel,
-    [grid, piechart_agents_num_element, agent_in_queue_chart, avg_time_agent_in_queue_chart],
+    [grid, num_agents_phases_piechart, agent_in_queue_chart, avg_agent_time_in_queue_chart],
     "Supermarket Model",
     {
+        "map_size": map_size,
         "capacity": capacity,
         "boundary": lane_switch_boundary,
         "world": world,

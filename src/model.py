@@ -1,6 +1,6 @@
 import math
 
-from colorama import Fore, Back, Style
+from colorama import Fore, Back
 from enum import Enum
 from mesa import Agent, Model
 from mesa.datacollection import DataCollector
@@ -57,7 +57,7 @@ class ObstacleAgent(Agent):
 class CashierAgent(Agent):
     def __init__(self, unique_id, model, pos=None):
         super().__init__(unique_id, model)
-        self.set_life()
+        self.set_life(0)
         self.pos = pos
         self.is_busy = False
 
@@ -209,7 +209,8 @@ class CustomerAgent(Agent):
         self.model.queues[self.objective].remove(self.unique_id)
 
     def random_spawn_point(self):
-        coin = self.random.randint(0, len(self.model.entry_points) - 1)
+        # coin = self.random.randint(0, len(self.model.entry_points) - 1)
+        coin = np.random.choice(len(self.model.entry_points), 1, p=[0.4, 0.3, 0.2, 0.1])[0]
 
         x, y, _ = self.model.entry_points[coin]
         if self.model.grid.is_cell_empty((x, y)):
@@ -299,12 +300,13 @@ class CustomerAgent(Agent):
 
 
 class SupermarketModel(Model):
-    def __init__(self, capacity, boundary, world, width, height, terrain_map_name, type=QueueType.CLASSIC):
+    def __init__(self, map_size, capacity, boundary, world, width, height, terrain_map_name, type=QueueType.CLASSIC):
         # Mesa internals
         self.running = True
         self.steps_in_day = 1440
 
         # World related
+        self.map_size = map_size
         self.world = world
         self.width = width
         self.height = height
@@ -320,8 +322,7 @@ class SupermarketModel(Model):
 
         self.entry_points = []
         self.queues = {}
-        self.queue_entry_points = {}
-        self.queue_length_limit = 7
+        self.queue_length_limit = 6
         self.cashiers = {}
         # TODO: Merge position (cash_registers) and open
         # attribute (open_cashier) with cashiers dict
@@ -347,7 +348,6 @@ class SupermarketModel(Model):
                     self.cashiers[cell] = self.grid[row][col] = agent
                     self.cash_registers[cell] = (row, col)
                     self.queues[cell] = set()
-                    self.queue_entry_points[cell] = (row, col - self.lane_switch_boundary)
                     # TODO: Add (remove) only upon cashier opening (closing)
                     self.schedule.add(agent)
                 elif cell in ['A', 'B', 'C', 'D', 'E']:
@@ -410,6 +410,7 @@ class SupermarketModel(Model):
         self.schedule.step()
 
         opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
+        print(closed)
         if len(closed) > 0:
             if get_avg_queued_agents(self) >= self.queue_length_limit:
                 coin = self.random.randint(0, len(closed) - 1)

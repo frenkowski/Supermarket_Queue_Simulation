@@ -1,17 +1,18 @@
 import os
 
+import colorama
 from mesa.visualization.modules.ChartVisualization import ChartModule
 from mesa.visualization.modules.PieChartVisualization import PieChartModule
 from mesa.visualization.UserParam import UserSettableParameter
 
-from model import CashierAgent, CustomerAgent, ObstacleAgent, QueueType, SupermarketModel
+from model import CashierAgent, CustomerAgent, MapSize, ObstacleAgent, QueueType, SupermarketModel
 from server import CustomModularServer
 from visualization.canvas_grid_with_terrain import CanvasGridWithTerrain
 
 
 def agent_portrayal(agent):
     if isinstance(agent, ObstacleAgent):
-        # return {}
+        return {}
         return {
             "Shape": "rect",
             "Filled": "true",
@@ -31,7 +32,6 @@ def agent_portrayal(agent):
             "Layer": 1,
             "w": 1,
             "h": 1,
-            "Color": "#0000bc44" if agent.open else "#bc000044",
         }
 
     if isinstance(agent, CustomerAgent):
@@ -40,7 +40,6 @@ def agent_portrayal(agent):
             "sprite": agent.sprite,
             "Filled": "true",
             "Layer": 1,
-            "Color": "blue",
             # "text": agent.unique_id,
             # "text_color": "white"
         }
@@ -48,8 +47,12 @@ def agent_portrayal(agent):
     raise Exception('Undefined render function for agent \'{}\''.format(type(agent)))
 
 
-queue_type = UserSettableParameter('choice', 'Queue', value=QueueType.CLASSIC.name,
+colorama.init(autoreset=True)
+queue_type = UserSettableParameter('choice', 'Queue Type', value=QueueType.CLASSIC.name,
                                    choices=[QueueType.CLASSIC.name, QueueType.SNAKE.name])
+
+map_size = UserSettableParameter('choice', 'Map Size', value=MapSize.SMALL.name,
+                                 choices=[MapSize.SMALL.name, MapSize.MEDIUM.name, MapSize.LARGE.name])
 
 with open(os.path.join(os.getcwd(), '..', 'resources', 'map3-snake.txt')) as f:
     capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
@@ -63,24 +66,24 @@ tile_size = 24
 grid = CanvasGridWithTerrain(agent_portrayal, width, height, terrain_map_name, width * tile_size, height * tile_size)
 
 # Label MUST match with value of model variables added to data collector.
-piechart_agents_num_element = PieChartModule([{"Label": "Agent in queue",
+piechart_agents_num_element = PieChartModule([{"Label": "Queued",
                                                "Color": "#AA0000"},
-                                              {"Label": "Agent that shopping",
+                                              {"Label": "Shopping",
                                                   "Color": "#FF8040"},
-                                              {"Label": "Agent in payment",
+                                              {"Label": "Paying",
                                                   "Color": "#800000"}
                                               ], 300, 300, data_collector_name='datacollector')
 
-agent_in_queue_chart = ChartModule([{"Label": "Agent in queue", "Color": "#AA0000"},
-                                    {"Label": "Avg. number of agent in queue", "Color": "#0000A0"}
+agent_in_queue_chart = ChartModule([{"Label": "Queued", "Color": "#AA0000"},
+                                    {"Label": "Queued (AVG)", "Color": "#0000A0"}
                                     ], data_collector_name='datacollector')
 
-avg_time_agent_in_queue_chart = ChartModule([{"Label": "Avg. time spent in queue", "Color": "#408080"}],
+avg_time_agent_in_queue_chart = ChartModule([{"Label": "Queued Time (AVG)", "Color": "#408080"}],
                                             data_collector_name='datacollector')
 
 server = CustomModularServer(
     SupermarketModel,
-    [grid, piechart_agents_num_element, agent_in_queue_chart, avg_time_agent_in_queue_chart],
+    [grid, piechart_agents_num_element, agent_in_queue_chart, avg_time_agent_in_queue_chart,],
     "Supermarket Model",
     {
         "capacity": capacity,

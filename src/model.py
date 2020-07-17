@@ -1,5 +1,6 @@
 import math
 
+from colorama import Fore, Back, Style
 from enum import Enum
 from mesa import Agent, Model
 from mesa.datacollection import DataCollector
@@ -16,6 +17,12 @@ class QueueType(Enum):
     SNAKE = 1
 
 
+class MapSize(Enum):
+    SMALL = 0
+    MEDIUM = 1
+    LARGE = 2
+
+
 class AgentPhase(Enum):
     SHOPPING = 0
     REACHING_QUEUE = 1
@@ -26,7 +33,7 @@ class AgentPhase(Enum):
 
 class Counter():
     def __init__(self, start):
-        self.count = start
+        self.count = math.floor(start)
 
     def __repr__(self):
         return str(int(self.count))
@@ -48,18 +55,18 @@ class ObstacleAgent(Agent):
 
 
 class CashierAgent(Agent):
-    def __init__(self, unique_id, model, remaining_life=300, pos=None):
+    def __init__(self, unique_id, model, pos=None):
         super().__init__(unique_id, model)
-        self.set_life(remaining_life)
+        self.set_life()
         self.pos = pos
         self.is_busy = False
 
     def __repr__(self):
         return 'Cashier: {} - Position: {}'.format(self.unique_id, self.pos)
 
-    def set_life(self, remaining_life):
-        self.remaining_life = remaining_life
-        self.open = remaining_life != 0
+    def set_life(self, life=180):
+        self.remaining_life = life
+        self.open = life != 0
         if self.open:
             self.model.open_cashier.add(self.unique_id)
 
@@ -73,7 +80,7 @@ class CustomerAgent(Agent):
         super().__init__(unique_id, model)
         self.sprite = sprite
 
-        self.products_count = np.random.normal(self.model.capacity / 2, self.model.capacity / 4)
+        self.products_count = math.floor(np.random.normal(self.model.capacity / 2, self.model.capacity / 4))
         self.shopping_time = Counter(3 + self.products_count * 0.75)
         self.paying_time = Counter(1 + self.products_count * 0.25)
 
@@ -91,7 +98,7 @@ class CustomerAgent(Agent):
         }
 
     def step(self):
-        print(self)
+        print(Fore.CYAN + str(self))
         self.step_for_phase[self.phase] += 1
 
         if self.phase == AgentPhase.SHOPPING:
@@ -246,7 +253,7 @@ class CustomerAgent(Agent):
         old_objective = self.objective
 
         if old_objective is not None and objective != old_objective:
-            print("changing destination", old_objective, objective)
+            print(Back.WHITE + Fore.MAGENTA + 'CHANGING DESTINATION FROM {} TO {}'.format(old_objective, objective))
             if self.unique_id in self.model.queues[old_objective]:
                 self.dequeue()
 
@@ -295,6 +302,7 @@ class SupermarketModel(Model):
     def __init__(self, capacity, boundary, world, width, height, terrain_map_name, type=QueueType.CLASSIC):
         # Mesa internals
         self.running = True
+        self.steps_in_day = 1440
 
         # World related
         self.world = world
@@ -306,7 +314,7 @@ class SupermarketModel(Model):
         self.lane_switch_boundary = boundary
 
         # Agent related
-        self.agents_count = 0
+        self.generated_customers_count = 0
         self.schedule = BaseScheduler(self)
         self.capacity = capacity
 
@@ -335,7 +343,7 @@ class SupermarketModel(Model):
                 elif cell == 'Z':
                     self.snake_exit = (row, col)
                 elif cell in ['1', '2', '3', '4', '5']:
-                    agent = CashierAgent(cell, self, 0, (row, col))
+                    agent = CashierAgent(cell, self, (row, col))
                     self.cashiers[cell] = self.grid[row][col] = agent
                     self.cash_registers[cell] = (row, col)
                     self.queues[cell] = set()
@@ -355,16 +363,16 @@ class SupermarketModel(Model):
         self.distance_matrix[world_matrix == '5'] = np.inf
 
         self.floor_fields = {}
-        for dest_label, (dest_y, dest_x) in self.cash_registers.items():
-            self.floor_fields[dest_label] = self.calculate_floor_field((dest_x, dest_y - 1))
+        for dest_label, (dest_col, dest_row) in self.cash_registers.items():
+            self.floor_fields[dest_label] = self.calculate_floor_field((dest_row, dest_col - 1))
 
         self.datacollector = DataCollector(
-            model_reporters={"Agent in supermarket": agents_in_supermarket,
-                             "Agent that shopping": agents_in_shopping,
-                             "Agent in queue": agents_in_queue,
-                             "Avg. number of agent in queue": agents_in_queue_avg,
-                             "Avg. time spent in queue": agent_in_queue_avg_time,
-                             "Agent in payment": agents_in_paying})
+            model_reporters={"Total": get_total_agents,
+                             "Shopping": get_shopping_agents,
+                             "Queued": get_queued_agents,
+                             "Queued (AVG)": get_avg_queued_agents,
+                             "Queued Time (AVG)": get_avg_queued_steps,
+                             "Paying": get_paying_agents})
 
         if self.queue_type == QueueType.SNAKE:
             self.distance_matrix[world_matrix == 'X'] = 1
@@ -376,15 +384,15 @@ class SupermarketModel(Model):
             self.movement_grid = Grid(matrix=self.distance_matrix, inverse=True)
 
         coin = self.random.randint(1, len(self.cashiers) - 1)
-        self.cashiers[str(coin)].set_life(300)
+        self.cashiers[str(coin)].set_life()
 
     def step(self):
-        print('Customers: {} - {}'.format(self.agents_count, len(self.schedule.agents)))
-        if len(self.schedule.agents) - 4 < self.capacity and self.should_spawn_agent():
+        self.current_agents = len(self.schedule.agents) - len(self.cashiers.items())
+        if self.current_agents < self.capacity and self.should_spawn_agent():
             self.schedule.add(self.create_agent())
 
-        available, busy = self.partition(self.cashiers.values(), lambda c: c.open and not c.is_busy)
         if self.queue_type == QueueType.SNAKE:
+            available, busy = self.partition(self.cashiers.values(), lambda c: c.open and not c.is_busy)
             if (not self.grid.is_cell_empty(self.snake_exit)) and len(available) > 0:
                 customer = self.grid.get_cell_list_contents(self.snake_exit)[0]
 
@@ -392,44 +400,49 @@ class SupermarketModel(Model):
                 cashier = available[coin]
 
                 customer.objective = cashier.unique_id
-                dest_x, dest_y = cashier.pos
-                customer.destination = (dest_x - 1, dest_y)
+                dest_col, dest_row = cashier.pos
+                customer.destination = (dest_col - 1, dest_row)
                 cashier.is_busy = True
-                print('Assigning cash {} to customer {}'.format(coin, customer))
-        # print("AGENTS IN_QUEUE_AVG_STEPS: " + str(agent_in_queue_avg_time(self)))
+                print(Back.WHITE + Fore.BLACK + 'ASSIGNING CASH_REGISTER {} TO CUSTOMER {}'.format(coin, customer.unique_id))
+        # print("AGENTS IN_QUEUE_AVG_STEPS: " + str(get_avg_queued_steps(self)))
 
         self.datacollector.collect(self)
         self.schedule.step()
 
-        serving, closed = self.partition(self.cashiers.values(), lambda c: c.open)
-        if len(serving) > 0 and len(closed) > 0:
-            if agents_in_queue_avg(self) >= self.queue_length_limit:
+        opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
+        if len(closed) > 0:
+            if get_avg_queued_agents(self) >= self.queue_length_limit:
                 coin = self.random.randint(0, len(closed) - 1)
                 cashier = closed[coin]
-                cashier.set_life(300)
+                cashier.set_life()
                 self.open_cashier.add(cashier.unique_id)
-                print('Opening new cash register: {}'.format(cashier.unique_id))
+                print(Back.WHITE + Fore.GREEN + 'OPENING NEW CASH_REGISTER: {}'.format(cashier.unique_id))
 
-        if self.queue_type == QueueType.CLASSIC:
-            if len(serving) > 1:
-                for cashier in serving:
+        if len(opened) > 1:
+            if self.queue_type == QueueType.CLASSIC:
+                for cashier in opened:
                     in_queue = len(self.queues[cashier.unique_id])
-                    if in_queue < 3 and in_queue > 1 and (cashier.remaining_life == 0 or self.agents_count < (self.capacity / 3)):
-                        cashier.open = False
-                        self.open_cashier.remove(cashier.unique_id)
-                        print('Closing cash register: {}'.format(cashier.unique_id))
-        elif self.queue_type == QueueType.SNAKE:
-            avg_agents_in_queue = agents_in_queue_avg(self)
-            if len(serving) > 1 and avg_agents_in_queue < 3:
-                to_close = [c for c in serving if c.remaining_life == 0 or self.agents_count < (self.capacity / 3)]
-                if len(to_close) > 0:
-                    coin = self.random.randint(0, len(to_close) - 1)
-                    self.close_cashier(to_close[coin])
+                    if in_queue < math.floor(self.queue_length_limit / 2) and in_queue > 1 and (cashier.remaining_life == 0 or self.current_agents < (self.capacity / 3)):
+                        self.close_cashier(cashier)
+                        opened.remove(cashier)
+                        [cashier.set_life(cashier.remaining_life + 50) for cashier in opened]
+                        break
+
+            elif self.queue_type == QueueType.SNAKE:
+                if get_avg_queued_agents(self) < math.floor(self.queue_length_limit / 2):
+                    to_close = [c for c in opened if c.remaining_life == 0 or self.current_agents < (self.capacity / 3)]
+                    if len(to_close) > 0:
+                        coin = self.random.randint(0, len(to_close) - 1)
+                        cashier = to_close[coin]
+
+                        self.close_cashier(cashier)
+                        opened.remove(cashier)
+                        [cashier.set_life(cashier.remaining_life + 50) for cashier in opened]
 
     def close_cashier(self, cashier):
         cashier.open = False
         self.open_cashier.remove(cashier.unique_id)
-        print('Closing cash register: {}'.format(cashier.unique_id))
+        print(Back.WHITE + Fore.RED + 'CLOSING CASH_REGISTER: {}'.format(cashier.unique_id))
 
     def partition(self, elements, predicate):
         left, right = [], []
@@ -439,99 +452,91 @@ class SupermarketModel(Model):
         return left, right
 
     def create_agent(self):
-        agent = CustomerAgent(self.agents_count, self, self.random_sprite())
-        self.agents_count += 1
+        agent = CustomerAgent(self.generated_customers_count, self, self.random_sprite())
+        self.generated_customers_count += 1
         return agent
 
     def should_spawn_agent(self):
         # Current: -\frac{\cos\left(\frac{t\pi}{1200}\right)}{2}+\frac{1}{2}
         # Attempt: \frac{1}{16\cos^{2}\left(\pi x\right)+1}
-        relative_time = self.schedule.steps % 1440
-        prob = (-math.cos(relative_time * np.pi / 720) + 1) / 2
+        relative_time = self.schedule.steps % self.steps_in_day
+        prob = (-math.cos(relative_time * np.pi / (self.steps_in_day / 2)) + 1) / 2
         return self.random.random() <= prob
 
     def random_sprite(self):
         sprites = [
-            'images/characters/grandpa',
-            'images/characters/grandpa2',
+            # 'images/characters/grandpa',
+            # 'images/characters/grandpa2',
             'images/characters/grandpa3',
-            'images/characters/man',
-            'images/characters/man2',
-            'images/characters/man3',
-            'images/characters/man4',
+            # 'images/characters/man',
+            # 'images/characters/man2',
+            # 'images/characters/man3',
+            # 'images/characters/man4',
             'images/characters/man5',
-            'images/characters/man6',
-            'images/characters/man7',
+            # 'images/characters/man6',
+            # 'images/characters/man7',
             'images/characters/man8',
-            'images/characters/man9',
+            # 'images/characters/man9',
             'images/characters/girl',
-            'images/characters/girl2',
+            # 'images/characters/girl2',
             'images/characters/girl3',
-            'images/characters/girl4',
-            'images/characters/girl5',
-            'images/characters/girl6',
-            'images/characters/girl7',
-            'images/characters/girl8',
+            # 'images/characters/girl4',
+            # 'images/characters/girl5',
+            # 'images/characters/girl6',
+            # 'images/characters/girl7',
+            # 'images/characters/girl8',
             'images/characters/girl9',
-            'images/characters/child-male',
-            'images/characters/child-female',
         ]
 
         return sprites[self.random.randint(0, len(sprites) - 1)]
 
-    def calculate_floor_field(self, target):
+    def calculate_floor_field(self, destination):
         field = self.distance_matrix.copy()
 
-        for x1 in range(len(field)):
-            for y1 in range(len(field[x1])):
-                if not np.isinf(field[x1, y1]):
-                    field[x1, y1] = distance.euclidean([x1, y1], target)
+        for row in range(len(field)):
+            for col in range(len(field[row])):
+                if not np.isinf(field[row, col]):
+                    field[row, col] = distance.euclidean([row, col], destination)
 
         return field
 
 
-def get_agents_in_phase(model, phase):
+def get_agents_in_phase(model, phases):
+    """ Retrieve agents in the specified phase(phasess) """
     return [agent for agent in model.schedule.agents
-            if isinstance(agent, CustomerAgent) and agent.phase in phase]
+            if isinstance(agent, CustomerAgent) and agent.phase in phases]
 
 
-def agents_in_queue(model):
+def get_queued_agents(model):
     """ Count number of agents IN_QUEUE state. """
     agents_in_queue = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER])
     return len(agents_in_queue)
 
 
-def agents_in_queue_avg(model):
-    """ Return number avg num of agent in queue. """
+def get_avg_queued_agents(model):
+    """ Return number avg num of Queued. """
     agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER])
-    return round(len(agents) / len(model.open_cashier), 2)
+    return math.ceil(len(agents) / len(model.open_cashier))
 
 
-def agents_in_supermarket(model):
+def get_total_agents(model):
     """ Return number of agents in supermarket. """
-    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE,
-                                         AgentPhase.PAYING,
-                                         AgentPhase.SHOPPING,
-                                         AgentPhase.REACHING_QUEUE,
-                                         AgentPhase.SNAKE_REACHING_CASHIER])
-    return len(agents)
+    return model.current_agents
 
 
-def agents_in_shopping(model):
-    """ Return number of agents that SHOPPING. """
-    agents = get_agents_in_phase(model, [AgentPhase.SHOPPING])
-    return len(agents)
+def get_shopping_agents(model):
+    """ Return number of agents in SHOPPING state. """
+    return len(get_agents_in_phase(model, [AgentPhase.SHOPPING]))
 
 
-def agents_in_paying(model):
+def get_paying_agents(model):
     """ Count number of agents in PAYING state. """
-    agents_in_queue = get_agents_in_phase(model, [AgentPhase.PAYING])
-    return len(agents_in_queue)
+    return len(get_agents_in_phase(model, [AgentPhase.PAYING]))
 
 
-def agent_in_queue_avg_time(model):
+def get_avg_queued_steps(model):
     """ Count avg number of steps IN_QUEUE. """
     agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER])
-    agents_time = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
-                   for agent in agents]
-    return round(sum(agents_time) / len(agents), 2) if len(agents) != 0 else 0
+    agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
+                    for agent in agents]
+    return math.ceil(sum(agents_steps) / len(agents)) if len(agents) != 0 else 0

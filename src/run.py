@@ -83,7 +83,7 @@ avg_time_agent_in_queue_chart = ChartModule([{"Label": "Queued Time (AVG)", "Col
 
 server = CustomModularServer(
     SupermarketModel,
-    [grid, piechart_agents_num_element, agent_in_queue_chart, avg_time_agent_in_queue_chart,],
+    [grid, piechart_agents_num_element, agent_in_queue_chart, avg_time_agent_in_queue_chart],
     "Supermarket Model",
     {
         "capacity": capacity,

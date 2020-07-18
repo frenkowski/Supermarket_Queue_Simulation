@@ -5,7 +5,8 @@ from mesa.visualization.modules.ChartVisualization import ChartModule
 from mesa.visualization.modules.PieChartVisualization import PieChartModule
 from mesa.visualization.UserParam import UserSettableParameter
 
-from model import CashierAgent, CashRegisterAgent, CustomerAgent, MapSize, ObstacleAgent, QueueType, SupermarketModel
+from enums import QueueType
+from model import CashierAgent, CashRegisterAgent, CustomerAgent, ObstacleAgent, SupermarketModel
 from server import CustomModularServer
 from visualization.canvas_grid_with_terrain import CanvasGridWithTerrain
 

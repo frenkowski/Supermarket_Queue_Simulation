@@ -80,8 +80,11 @@ class CustomerAgent(Agent):
         self.paying_time = Counter(1 + self.products_count * 0.25)
 
         self.phase = AgentPhase.SHOPPING
+        self.remaining_objective_updates = 2
         self.objective = None
         self.destination = None
+        self.previous_positions = None
+        self.is_stuck = False
 
         if self.model.queue_type == QueueType.CLASSIC:
             self.strategy = ClassicStepStrategy(self, self.model)
@@ -250,7 +253,7 @@ class SupermarketModel(Model):
                 for cashier in opened:
                     in_queue = len(self.queues[cashier.unique_id])
                     # if in_queue > 1 and in_queue <= math.floor(self.queue_length_limit / 2) and (cashier.remaining_life == 0 and self.current_agents < (self.capacity / 3)):
-                    if len(opened) > self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents < (len(opened) + 1) * self.capacity / self.queue_length_limit:
+                    if in_queue > 1 and len(opened) > self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents < (len(opened) + 1) * self.capacity / self.queue_length_limit:
                         self.close_cashier(cashier)
                         opened.remove(cashier)
                         # cashier.set_life(-90)

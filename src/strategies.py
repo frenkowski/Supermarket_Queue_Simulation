@@ -66,12 +66,18 @@ class StepStrategy(ABC):
     def update_objective(self, objective):
         old_objective = self.agent.objective
 
-        if old_objective is not None and objective != old_objective and self.model.random.random() <= 0.25:
+        # if self.agent.is_stuck:
+        #     self.agent.remaining_objective_updates = 2
+        #     self.agent.is_stuck = False
+
+        if old_objective is None:
+            self.agent.objective = objective
+        elif (objective != old_objective and self.model.random.random() <= 0.25 and self.agent.remaining_objective_updates > 0):
             print(Back.WHITE + Fore.MAGENTA + 'CHANGING DESTINATION FROM {} TO {}'.format(old_objective, objective))
+            self.agent.remaining_objective_updates -= 1
+            self.agent.objective = objective
             if self.agent.unique_id in self.model.queues[old_objective]:
                 self.dequeue()
-
-        self.agent.objective = objective
 
     def next_move(self):
         dest_col, dest_row = self.agent.destination
@@ -110,8 +116,19 @@ class ClassicStepStrategy(StepStrategy):
                 self.agent.phase = AgentPhase.REACHING_QUEUE
 
         elif self.agent.phase == AgentPhase.REACHING_QUEUE:
+            if self.agent.previous_positions == self.agent.pos:
+                self.agent.is_stuck = True
+
             # Pick destination cash_register
             dest_x, dest_y = self.decide_destination()
+
+            if self.agent.is_stuck:
+                print(Back.WHITE + Fore.CYAN + 'AGENT IS STUCK AT {}'.format(self.agent.pos))
+                dest_y += 1
+                self.agent.is_stuck = False
+
+            self.agent.previous_positions = self.agent.pos
+
             if self.model.grid[dest_x][dest_y] is not None:
                 return
 

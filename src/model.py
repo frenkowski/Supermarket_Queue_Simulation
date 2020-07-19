@@ -2,6 +2,7 @@ import math
 import os
 
 from colorama import Fore, Back
+import matplotlib.pyplot as plt
 from mesa import Agent, Model
 from mesa.datacollection import DataCollector
 from mesa.space import SingleGrid
@@ -10,6 +11,7 @@ import numpy as np
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
 from scipy.spatial import distance
+import seaborn as sns
 
 from enums import AgentPhase, QueueType
 from strategies import ClassicStepStrategy, SnakeStepStrategy
@@ -106,6 +108,10 @@ class CustomerAgent(Agent):
 
         self.strategy.step()
 
+        if self.pos is not None:
+            col, row = self.pos
+            self.model.heatmap[row, col] += 1
+
         # print(self.model.queues)
         # print(self.step_for_phase)
 
@@ -179,6 +185,8 @@ class SupermarketModel(Model):
                 elif cell in ['A', 'B', 'C', 'D', 'E']:
                     self.entry_points.append((row, col, cell))
 
+        self.heatmap = np.zeros((self.height, self.width))
+
         world_matrix = np.matrix(self.world)
         self.distance_matrix = np.zeros((self.height, self.width))
         self.distance_matrix[world_matrix == 'X'] = np.inf
@@ -219,24 +227,17 @@ class SupermarketModel(Model):
         if self.current_agents < self.capacity and self.should_spawn_agent():
             self.schedule.add(self.create_agent())
 
-        if self.queue_type == QueueType.SNAKE:
-            available, busy = self.partition(self.cashiers.values(), lambda c: c.open and not c.is_busy)
-            if (not self.grid.is_cell_empty(self.snake_exit)) and len(available) > 0:
-                customer = self.grid.get_cell_list_contents(self.snake_exit)[0]
-
-                coin = self.random.randint(0, len(available) - 1)
-                cashier = available[coin]
-
-                customer.objective = cashier.unique_id
-                dest_col, dest_row = cashier.pos
-                customer.destination = (dest_col - 1, dest_row)
-                cashier.is_busy = True
-                print(Back.WHITE + Fore.BLACK + 'ASSIGNING CASH_REGISTER {} TO CUSTOMER {}'.format(coin, customer.unique_id))
-        # print("AGENTS IN_QUEUE_AVG_STEPS: " + str(get_avg_queued_steps(self)))
-
         self.datacollector.collect(self)
         self.schedule.step()
 
+        self.adjust_cashiers()
+        if self.queue_type == QueueType.SNAKE:
+            self.assign_cash_register_to_customer()
+
+        if self.schedule.steps % (self.steps_in_day / 2) == 0:
+            self.store_heatmap()
+
+    def adjust_cashiers(self):
         opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
         if len(closed) > 0:
             # if len(get_agents_in_phase(self, [AgentPhase.REACHING_QUEUE, AgentPhase.IN_QUEUE])) / len(opened) >= self.queue_length_limit:
@@ -271,6 +272,39 @@ class SupermarketModel(Model):
                         opened.remove(cashier)
                         # cashier.set_life(-90)
                         [cashier.set_life(cashier.remaining_life + 25) for cashier in opened]
+
+    def assign_cash_register_to_customer(self):
+        available, busy = self.partition(self.cashiers.values(), lambda c: c.open and not c.is_busy)
+        if (not self.grid.is_cell_empty(self.snake_exit)) and len(available) > 0:
+            customer = self.grid.get_cell_list_contents(self.snake_exit)[0]
+
+            coin = self.random.randint(0, len(available) - 1)
+            cashier = available[coin]
+
+            customer.objective = cashier.unique_id
+            dest_col, dest_row = cashier.pos
+            customer.destination = (dest_col - 1, dest_row)
+            cashier.is_busy = True
+            print(Back.WHITE + Fore.BLACK + 'ASSIGNING CASH_REGISTER {} TO CUSTOMER {}'.format(coin, customer.unique_id))
+
+    def store_heatmap(self):
+        sns.heatmap(self.heatmap)
+        plt.savefig('heatmap{}.png'.format('' if self.queue_type == QueueType.CLASSIC else '-snake'))
+        plt.close()
+        # plt.imshow(purchasing_heatmap, cmap='inferno')
+        # plt.axis("off")
+        # plt.title("Steps required: " + str(total_steps))
+        # plt.savefig(
+        #     'results and plot/HEATMAP/Purchasing/heatmap' + self._queue_type + str(self.num_agents) + 'C' + str(
+        #         self.activeCash) + '.png')
+        # plt.close()
+        # plt.imshow(queue_heatmap, cmap='inferno')
+        # plt.axis("off")
+        # plt.title("Steps required: " + str(total_steps))
+        # plt.savefig('results and plot/HEATMAP/Queue/heatmap' + self._queue_type + str(self.num_agents) + 'C' + str(
+        #     self.activeCash) + '.png')
+        # plt.close()
+        # np.savetxt('heatmap.txt', self.heatmap, fmt='%1i')
 
     def close_cashier(self, cashier):
         cashier.open = False

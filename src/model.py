@@ -11,6 +11,7 @@ import numpy as np
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
 from scipy.spatial import distance
+from scipy.stats import truncnorm
 import seaborn as sns
 
 from enums import AgentPhase, QueueType
@@ -77,7 +78,7 @@ class CustomerAgent(Agent):
         super().__init__(unique_id, model)
         self.sprite = sprite
 
-        self.products_count = math.floor(np.random.normal(self.model.capacity / 2, self.model.capacity / 4))
+        self.products_count = math.floor(get_truncated_normal(mean=self.model.capacity / 2, sd=self.model.capacity / 4, upp=self.model.capacity))
         self.shopping_time = Counter(3 + self.products_count * 0.75)
         self.paying_time = Counter(1 + self.products_count * 0.25)
 
@@ -138,7 +139,7 @@ class SupermarketModel(Model):
         self.terrain_map_name = 'map' if self.queue_type == QueueType.CLASSIC else 'map_snake'
         with open(os.path.join(os.getcwd(), '..', 'resources', '{}.txt'.format(self.terrain_map_name))) as f:
             self.width, self.height = map(int, f.readline().strip().split(' '))
-            self.capacity, self.lane_switch_boundary = map(int, f.readline().strip().split(' '))
+            self.capacity = int(f.readline().strip())
             # Skip third txt line with terrain map name (unneeded in model)
             f.readline().strip()
             self.world = [list(c) for c in f.read().split('\n') if c]
@@ -174,6 +175,7 @@ class SupermarketModel(Model):
                     self.snake_exit = (row, col)
                 elif cell in ['1', '2', '3', '4', '5']:
                     cash_register = CashRegisterAgent(cell, self, (row, col))
+                    self.cashier_row = col
                     self.cashiers[cell] = self.grid[row][col] = cash_register
                     self.cash_registers[cell] = (row, col)
                     self.queues[cell] = set()
@@ -184,6 +186,9 @@ class SupermarketModel(Model):
                     self.grid[row + 1][col] = cashier
                 elif cell in ['A', 'B', 'C', 'D', 'E']:
                     self.entry_points.append((row, col, cell))
+                    self.spawn_row = col
+
+        self.lane_switch_boundary = math.ceil((self.cashier_row - self.spawn_row) * 3 / 4)
 
         self.heatmap = np.zeros((self.height, self.width))
 
@@ -422,3 +427,8 @@ def get_avg_queued_steps(model):
     agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
                     for agent in agents]
     return math.ceil(sum(agents_steps) / len(agents)) if len(agents) != 0 else 0
+
+
+def get_truncated_normal(mean=0, sd=1, low=1, upp=np.inf):
+    print(mean, sd, low, upp)
+    return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs()

@@ -64,7 +64,7 @@ queue_type = UserSettableParameter('choice', 'Queue Type', value=QueueType.CLASS
 
 with open(os.path.join(os.getcwd(), '..', 'resources', 'map.txt')) as f:
     width, height = map(int, f.readline().strip().split(' '))
-    capacity, lane_switch_boundary = map(int, f.readline().strip().split(' '))
+    f.readline()
     terrain_map_name = f.readline().strip()
 
 tile_size = 24

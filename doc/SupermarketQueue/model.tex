@@ -1,0 +1,74 @@
+\section{Supermarket Model}
+
+\subsection{Struttura}
+La struttura del supermercato viene caricata tramite un apposito file \lstinline{txt}. 
+Tale file è strutturato in modo tale da fornire al modello alcune informazioni essenziali.
+
+La prima riga prevede la dimensione del supermercato.
+In questo studio si è deciso di modellarne uno di medie dimensioni, con un'area totale pari a $32x30$.
+
+Sulla seconda riga sono presenti due variabili dipendenti dall'area, ossia la capienza massima e il numero di riga entro il quale un agente può cambiare cassa. 
+Questo risulta essere particolarmente importante per limitare l'effetto "sciame", il quale si verifica, nella modalità Classic, quando più agenti provano contemporaneamente a cambiare cassa. Limitandone l'effetto, le code risultano più ordinate.
+Nel nostro studio, quest'ultimo parametro ha un valore pari a $10$ mentre la capienza massima è stata impostata a $35$.
+
+La terza riga descrive la tipologia di coda implementata dalla mappa. 
+Sono presenti infatti due tipi di coda, Classic e Snake, come descritto nella Sezione \ref{}.
+
+Infine, nelle restanti righe, è presente la struttura vera e propria della mappa. 
+Il simbolo \texttt{'X'} corrisponde ad un ostacolo, la \texttt{'O'} alle celle percorribili da un agente. 
+I numeri da \texttt{1} a \texttt{N} equivalgono alle casse, mentre le lettere da \texttt{A} a \texttt{Z} corrispondono ai punti di spawn. 
+Questi sono necessari in quanto la fase di shopping, che vede l'agente muoversi tra gli scaffali con l'obiettivo di acquistare un certo numero di prodotti, viene interpretata dal nostro modello come una black-box. 
+Pertanto risulta inevitabile predisporre, in concomitanza di ogni scaffale, un'apposita cella che permette all'agente di raggiungere una determinata cassa, dopo essere stato spawnato. 
+Tale argomento verrà trattato nella Sezione \ref{}.
+La modalità Snake prevede inoltre due simboli aggiuntivi, ovvero la lettera \texttt{S} che indica l'ingresso nel serpentone e la lettera \texttt{Z} che indica la relativa uscita. 
+
+La Figura \ref{} mostra il contenuto del file \lstinline{txt} usato per la modalità Classic. La Figura \ref{} mostra invece la struttura della mappa una volta caricata dal modello.
+
+\subsection{Tipologie di Coda}
+Il modello implementa due diverse tipologie di coda:
+\begin{itemize}
+    \item \textbf{Classic} rappresenta, per l'appunto, la modalità più classica; è quindi presente un numero di code pari al numero di casse aperte. 
+    Nel nostro progetto una fila può avere una lunghezza massima pari a $12$ celle. 
+    Questo valore permette di studiare efficacemente i fenomeni di nostro interesse. 
+    \item \textbf{Snake} rappresenta invece la così detta modalità 'a serpentone'. 
+    In questa modalità è presente un unico ingresso, il quale permette di percorrere l'unica fila presente fino a raggiungere la cella di uscita. Una volta raggiunta l'agente verrà assegnato alla prima cassa libera, facendo così scorrere la fila.
+\end{itemize}
+E' importante sottolineare come nella modalità Classic la scelta della cassa ottimale è rimandata all'agente, mentre nella modalità Snake è l'ambiente a dover effettuare questa scelta.
+
+\subsection{Floor Field}
+La scelta della destinazione ottimale, ossia della cassa più vicina e con il minor numero di persone in coda, avviene grazie all'utilizzo dei \textit{floor fields}.
+Nel dettaglio, la nostra implementazione vede la generazione di un numero di floor field pari al numero di casse aperte. 
+Il corrispondente valore di ogni cella è pari alla distanza euclidea, dal punto di spawn fino alla corrispettiva cassa, descritta tramite l'equazione:
+\begin{equation*}
+ d\left( p,q\right)   = \sqrt {\sum _{i=1}^{n}  \left( q_{i}-p_{i}\right)^2 } .
+\end{equation*}
+In corrispondenza di un ostacolo la distanza è stata impostata pari a $+ \infty$.
+
+L'agente, avendo una visione locale dell'ambiente che coincide con il suo vicinato, sceglie quindi, per ogni cassa, la destinazione locale ottima. 
+A questi valori viene successivamente sommato il numero attuale di persone in coda, in modo da tener conto anche dell'affollamento.
+Ora, tra tutte le destinazioni locali, viene selezionata quella ottimale, corrispondente quindi alla cassa scelta come obiettivo.
+Il movimento dell'agente sarà quindi basato sulla cassa che tale agente ha come obiettivo.
+
+\subsection{Spawn degli Agenti}
+Per far sì che il modello rappresenti una situazione vicina alla realtà, si è scelto di modellare l'ingresso degli agenti in modo tale da avere una fase iniziale di graduale riempimento, fino al raggiungimento di un picco oltre il quale ci sarà un progressivo svuotamento.
+
+Viene quindi generato, ad ogni step, un numero compreso tra $0$ e $1$ secondo la seguente equazione:
+\begin{equation*}
+p_1 = -\frac{\cos\left(\frac{t\pi}{1200}\right)}{2}+\frac{1}{2} .
+\end{equation*}
+Successivamente viene generato un numero casuale $p_2$, sempre tra $0$ e $1$. 
+Se $p_2 > p_1$ allora l'agente verrà effettivamente creato.
+
+La Figura \ref{} mostra il grafico di tale funzione. 
+E' possibile notare come la probabilità relativa alla creazione di un agente tende ad aumentare fino a metà giornata, quando il numero di step è pari a $1200$. 
+Superato questo valore la probabilità tenderà a scendere, garantendo così lo svuotamento del supermercato.
+
+\subsection{Gestione delle Casse}
+La gestione delle casse è stata pensata in modo tale che il numero di casse aperte risulti coerente sia con la specifica fase della giornata sia con il numero di persone presenti nel supermercato.
+Questo implica che durante la fase di riempimento le casse tenderanno ad aprire. 
+Durante il picco ci sarà quindi una situazione in cui tutte le casse saranno aperte, in modo da gestire efficacemente la fase di maggiore affluenza. 
+Infine, durante lo svuotamento, le casse chiuderanno in maniera graduale. 
+
+E' importante sottolineare come questa gestione non è stata implementata in maniera simmetrica ma bensì cercando di anticipare una possibile apertura, posticipando così la corrispettiva chiusura. 
+
+\subsection{Gestione degli step}

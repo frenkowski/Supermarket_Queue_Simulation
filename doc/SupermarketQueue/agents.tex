@@ -75,7 +75,7 @@ Alla creazione di un cliente, sulla base del numero di prodotti generato dalla d
 La formula utilizzata per calcolare questo tempo dipende dal parametro \textit{numero di prodotti} (\textit{product count}), nel seguente modo: 
 
 \begin{equation*}
-shopping time = 3 + product count * 0.75
+shopping\_time = 3 + product\_count * 0.75
 \end{equation*}
 
 Supponendo, ad esempio, che un cliente debba acquistare 20 prodotti, allora il tempo impiegato per fare la spesa sarà di circa 18 step.
@@ -87,12 +87,58 @@ Altro parametro che viene assegnato ad ogni cliente alla sua creazione è quello
 La formula utilizzata per calcolare questo tempo dipende sempre dal parametro \textit{numero di prodotti} (\textit{product count}), nel seguente modo:
 
 \begin{equation*}
-paying time = 1 + product count * 0.25
+paying\_time = 1 + product\_count * 0.25
 \end{equation*}
 
 Supponendo, ad esempio, che un cliente debba acquistare 20 prodotti, allora il tempo impiegato per effettuare il pagamento una volta raggiunta la cassa sarà di circa 6 minuti.
 
-\subsection{Scelta della destinazione}
+\subsection{Movimento e scelta della destinazione}
 
+La scelta della destinazione da parte del cliente è una fase critica e viene gestita in maniera differente in base al tipo di coda che si sta utilizzando nella simulazione. L'obiettivo generale dell'agente nella decisione della destinazione è quello di eseguire una scelta ottima, cercando di minimizzare il tempo impiegato per il raggiungimento di una cassa per effettuare il pagamento. 
+Questa scelta risulta critica ai fini del successivo movimento che si andrà ad effettuare, in quanto si cercherà di minimizzare il percorso verso quella determinate destinazione.
 
+\subsubsection*{Classic Mode}
 
+Nella modalità \textbf{classic} è il cliente stesso che una volta entrato nella zona casse (fase \textbf{Reaching the queue}) deve scegliere la destinazione, in particolare la coda in cui accodarsi, cercando di eseguire una scelta locale ottima. 
+
+La scelta della destinazione, fino ad arrivare all'effettivo movimento, viene eseguita dall'agente e si articola nei seguenti passi, schematizzati in figura:
+
+\begin{itemize}
+    \item \textbf{Find best move}: in questo primo passo vengono considerate le 8 celle vicine, considerando un vicinato di \textbf{Moore}. Per ognuna di queste celle si vanno a controllare i corrispondenti valori nei 5 \textbf{floor fields} relativi alle casse aperte. Per ogni possibile destinazione (cassa aperta) viene salvata la cella che minimizza la distanza da quella cassa. Il cliente in questo modo attribuisce un costo ad ogni possibile destinazione, che viene determinato sulla base della distanza da tale destinazione. Successivamente viene pesato il costo di ogni possibile destinazione con il numero di persone in coda in quella determinata cassa (congestione). In questo modo ogni possibile destinazione (cassa aprta) ha attribuito un costo dovuto alla \textbf{distanza} (ottenuto da floor field relativo a quella destinazione) e alla congestione in quella cassa. Viene quindi selezionata come destinazione la cassa che minimizza il costo complessivo.  
+    \item \textbf{Update objective}: dal momento che l'agente può rivalutare la decisione presa (per un numero finito di volte) allora in questa fase viene confrontato il nuovo obiettivo deciso con il vecchio e qualora questi due non coincidessero (l'agente cambia decisione), questo viene aggiornato con una probabilità del 25\%. È stata aggiunta una probabilità di aggiornamento della decisione per rendere più realistica la simulazione e impedendo continui cambiamenti di decisioni che avrebbero condotto ad effetti confusionari.
+    \item \textbf{Find queue start position}: in questa fase viene utilizzata la decisione presa negli step precedenti per individuare la posizione di inizio della coda, ovvero quella verso cui l'agente dovrà dirigere il proprio movimento.
+    \item \textbf{Move}: in questa fase, sulla decisione presa precedentemente l'agente effettuerà un movimento verso l'inizio della coda della cassa prestabilita come destinazione.
+\end{itemize}
+
+\begin{figure}[h!]
+    \includegraphics[width=\linewidth]{img/decision-classic.png}
+    \centering
+    \caption{Fasi della decisione di una destinazione.}
+\end{figure}
+
+Tutte queste operazioni vengono fatte prima che il cliente si accodi definitivamente. Naturalmente un cliente può ri-considerare la propria decisione relativa alla destinazione, qualora non si trovi troppo vicino alla cassa obiettivo, in quanto renderebbe poco realistico il cambio di destinazione. Una volta raggiunta la coda l'agente si muoverà in avanti al proseguimento della stessa.
+
+\subsubsection*{Snake Mode}
+
+Nella modalità \textbf{snake} non sarà il cliente a prendere una decisione della destinazione, in base alle proprie percezioni locali, come nella modalità \textbf{classic}, ma sarà l'ambiente ad assegnare ad ogni agente la successiva destinazione, in base alle fasi in cui esso si trova. L'agente, si dovrà quindi solo occupare di effettuare un movimento verso quella destinazione. 
+
+In questa situazione, indipendentemente dalla fase in cui l'agente si trovi, per raggiungere la destinazione assegnatagli dall'ambiente eseguirà i seguenti due passi:
+
+\begin{itemize}
+    \item \textbf{Find best path to destination}: in questa fase il cliente ricerca il percorso minimo, e quindi il percorso ottimo dalla propria posizione verso la destinazione assegnatagli.
+    \item \textbf{Move}: una volta calcolato il percorso l'agente si muoverà verso la destinazione, seguendo la cella successiva nel percorso ottimo trovato.
+\end{itemize}
+
+\begin{figure}[h!]
+    \includegraphics[width=0.5\linewidth]{img/decision-snake.png}
+    \centering
+    \caption{Fasi della decisione di una destinazione.}
+\end{figure}
+
+Nelle diverse fasi di vita dell'agente le destinazioni che l'ambiente assegna ad esso sono le seguenti:
+
+\begin{itemize}
+    \item \textbf{Reaching the queue}: la destinazione sarà l'ingresso della coda a serpentone.
+    \item \textbf{In queue}: la destinazione sarà la fine della coda a serpentone (accesso alle casse).
+    \item \textbf{Reaching cashier}: la destinazione sarà la cassa libera che l'ambiente ha assegnato a quel determinato agente.
+\end{itemize}

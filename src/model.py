@@ -140,8 +140,6 @@ class SupermarketModel(Model):
         with open(os.path.join(os.getcwd(), '..', 'resources', '{}.txt'.format(self.terrain_map_name))) as f:
             self.width, self.height = map(int, f.readline().strip().split(' '))
             self.capacity = int(f.readline().strip())
-            # Skip third txt line with terrain map name (unneeded in model)
-            f.readline().strip()
             self.world = [list(c) for c in f.read().split('\n') if c]
 
         self.grid = SingleGrid(self.width, self.height, True)
@@ -294,7 +292,7 @@ class SupermarketModel(Model):
 
     def store_heatmap(self):
         sns.heatmap(self.heatmap)
-        plt.savefig('heatmap{}.png'.format('' if self.queue_type == QueueType.CLASSIC else '-snake'))
+        plt.savefig(os.path.join('..', 'output', 'heatmap{}.png'.format('' if self.queue_type == QueueType.CLASSIC else '-snake')))
         plt.close()
 
     def close_cashier(self, cashier):

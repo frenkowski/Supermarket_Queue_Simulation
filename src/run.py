@@ -64,10 +64,9 @@ queue_type = UserSettableParameter('choice', 'Queue Type', value=QueueType.CLASS
 
 with open(os.path.join(os.getcwd(), '..', 'resources', 'map.txt')) as f:
     width, height = map(int, f.readline().strip().split(' '))
-    f.readline()
-    terrain_map_name = f.readline().strip()
 
 tile_size = 24
+terrain_map_name = 'map'
 grid = CanvasGridWithTerrain(agent_portrayal, width, height, terrain_map_name, width * tile_size, height * tile_size)
 
 # Label MUST match with value of model variables added to data collector.

@@ -2,6 +2,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc} %utf8 % lettere accentate da tastiera
 \usepackage[italian]{babel} % lingua del documento
+\usepackage{lmodern}
 \usepackage[hidelinks]{hyperref}
 \usepackage{graphicx}
 \usepackage{lmodern}
@@ -11,6 +12,7 @@
 \usepackage{amsmath}  % for \hookrightarrow
 \usepackage{xcolor}   % for \textcolor
 \usepackage{listings}
+\usepackage{float}
 \usepackage{cleveref}
 \lstset{
   basicstyle=\ttfamily,
@@ -19,6 +21,10 @@
   breaklines=true,
   postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
 }
+
+\frenchspacing
+
+\graphicspath{ {./img/} }
 
 % nested enumerations
 \renewcommand{\labelenumii}{\theenumii}

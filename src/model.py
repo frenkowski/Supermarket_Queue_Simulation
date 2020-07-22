@@ -296,20 +296,6 @@ class SupermarketModel(Model):
         sns.heatmap(self.heatmap)
         plt.savefig('heatmap{}.png'.format('' if self.queue_type == QueueType.CLASSIC else '-snake'))
         plt.close()
-        # plt.imshow(purchasing_heatmap, cmap='inferno')
-        # plt.axis("off")
-        # plt.title("Steps required: " + str(total_steps))
-        # plt.savefig(
-        #     'results and plot/HEATMAP/Purchasing/heatmap' + self._queue_type + str(self.num_agents) + 'C' + str(
-        #         self.activeCash) + '.png')
-        # plt.close()
-        # plt.imshow(queue_heatmap, cmap='inferno')
-        # plt.axis("off")
-        # plt.title("Steps required: " + str(total_steps))
-        # plt.savefig('results and plot/HEATMAP/Queue/heatmap' + self._queue_type + str(self.num_agents) + 'C' + str(
-        #     self.activeCash) + '.png')
-        # plt.close()
-        # np.savetxt('heatmap.txt', self.heatmap, fmt='%1i')
 
     def close_cashier(self, cashier):
         cashier.open = False
@@ -352,26 +338,11 @@ class SupermarketModel(Model):
 
     def random_sprite(self):
         sprites = [
-            # 'images/characters/grandpa',
-            # 'images/characters/grandpa2',
             'images/characters/grandpa3',
-            # 'images/characters/man',
-            # 'images/characters/man2',
-            # 'images/characters/man3',
-            # 'images/characters/man4',
             'images/characters/man5',
-            # 'images/characters/man6',
-            # 'images/characters/man7',
             'images/characters/man8',
-            # 'images/characters/man9',
             'images/characters/girl',
-            # 'images/characters/girl2',
             'images/characters/girl3',
-            # 'images/characters/girl4',
-            # 'images/characters/girl5',
-            # 'images/characters/girl6',
-            # 'images/characters/girl7',
-            # 'images/characters/girl8',
             'images/characters/girl9',
         ]
 
@@ -430,5 +401,4 @@ def get_avg_queued_steps(model):
 
 
 def get_truncated_normal(mean=0, sd=1, low=1, upp=np.inf):
-    print(mean, sd, low, upp)
     return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs()

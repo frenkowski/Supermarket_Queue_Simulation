@@ -30,6 +30,8 @@ class Counter():
 
     def decrement(self):
         self.count -= 1
+        # print('Decreasing:', np.random.exponential(0.25))
+        # self.count -= np.random.exponential(0.25)
         return self.count
 
 
@@ -56,6 +58,7 @@ class CashRegisterAgent(Agent):
         self.set_life(0)
         self.pos = pos
         self.is_busy = False
+        self.empty_since = 0
 
     def __repr__(self):
         return 'Cashier: {} - Position: {}'.format(self.unique_id, self.pos)
@@ -72,6 +75,11 @@ class CashRegisterAgent(Agent):
         return self.model.grid[col - 1][row] is not None or self.open
 
     def step(self):
+        if not self.serving:
+            self.empty_since += 1
+        else:
+            self.empty_since = 0
+
         if self.remaining_life > 0:
             self.remaining_life -= 1
         elif self.remaining_life < 0:
@@ -84,8 +92,9 @@ class CustomerAgent(Agent):
         self.sprite = sprite
 
         self.products_count = math.floor(get_truncated_normal(mean=self.model.capacity / 2, sd=self.model.capacity / 4, upp=self.model.capacity))
-        self.shopping_time = Counter((3 + self.products_count * 0.75) * 60)
-        self.paying_time = Counter((1 + self.products_count * 0.25) * 60)
+        self.shopping_time = Counter((3 + self.products_count * 0.75)*60)
+        # self.shopping_time = Counter(np.random.exponential(5))
+        self.paying_time = Counter((1 + self.products_count * 0.25)*60)
 
         self.phase = AgentPhase.SHOPPING
         self.remaining_objective_updates = 2
@@ -240,17 +249,22 @@ class SupermarketModel(Model):
 
         coin = self.random.randint(1, len(self.cashiers) - 1)
         self.cashiers[str(coin)].set_life()
+        self.generated = []
 
     def step(self):
         self.current_agents = len(self.schedule.agents) - len(self.cashiers.items())
-        estimated = self.capacity * 4
-        rate = estimated / self.steps_in_day
-        to_spawn = np.random.poisson(rate)
-        print('Entering: ', to_spawn)
+        # estimated = self.capacity * 4
+        # rate = estimated / self.steps_in_day
+        # rate = 1800 / 3600
+        # to_spawn = np.random.poisson(rate)
+        # self.generated.append(to_spawn)
+        # print('Entering: ', to_spawn)
 
-        for i in range(to_spawn):
-            if self.current_agents < self.capacity:
-                self.schedule.add(self.create_agent())
+        # for i in range(to_spawn):
+        #     if self.current_agents < self.capacity and self.should_spawn_agent():
+        #         self.schedule.add(self.create_agent())
+        if self.current_agents < self.capacity and self.should_spawn_agent():
+            self.schedule.add(self.create_agent())
 
         self.datacollector.collect(self)
         self.schedule.step()
@@ -264,9 +278,28 @@ class SupermarketModel(Model):
 
     def adjust_cashiers(self):
         opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
+
+        RIQ = 1
+        if len(get_agents_in_phase(self, [AgentPhase.REACHING_QUEUE, AgentPhase.IN_QUEUE])) > 0:
+            RIQ = len(opened) * 4 / len(get_agents_in_phase(self, [AgentPhase.IN_QUEUE, AgentPhase.REACHING_QUEUE, AgentPhase.PAYING]))
+
+        RIQ_real = 0
+        if len(get_agents_in_phase(self, [AgentPhase.IN_QUEUE])) > 0:
+            RIQ_real = len(get_agents_in_phase(self, [AgentPhase.IN_QUEUE, AgentPhase.PAYING])) / len(opened)
+
+        RQA = 0
+        if get_total_agents(self) > 0:
+            RQA = len(get_agents_in_phase(self, [AgentPhase.IN_QUEUE, AgentPhase.REACHING_QUEUE])) / get_total_agents(self)
+
+        RMQ = 1
+        if len(get_agents_in_phase(self, [AgentPhase.PAYING, AgentPhase.REACHING_QUEUE, AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER])) > 0:
+            RMQ = get_shopping_agents(self) / len(get_agents_in_phase(self, [AgentPhase.IN_QUEUE, AgentPhase.REACHING_QUEUE, AgentPhase.PAYING]))
+
+        print(Back.WHITE + Fore.BLACK + 'RIQ: {} - RIQ_real: {} - RQA: {} - RMQ: {}'.format(RIQ, RIQ_real, RQA, RMQ))
+
+        # Opening
         if len(closed) > 0:
-            # if len(get_agents_in_phase(self, [AgentPhase.REACHING_QUEUE, AgentPhase.IN_QUEUE])) / len(opened) >= self.queue_length_limit:
-            if len(opened) < self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents > (len(opened) + 1) * self.capacity / self.queue_length_limit:
+            if RIQ < 1 and RIQ_real > 4.5 and RQA != 0:
                 coin = self.random.randint(0, len(closed) - 1)
                 cashier = closed[coin]
                 # if cashier.remaining_life == 0:
@@ -274,12 +307,12 @@ class SupermarketModel(Model):
                 self.open_cashier.add(cashier.unique_id)
                 print(Back.WHITE + Fore.GREEN + 'OPENING NEW CASH_REGISTER: {}'.format(cashier.unique_id))
 
+        # Closure
         if len(opened) > 1:
             if self.queue_type == QueueType.CLASSIC:
                 for cashier in opened:
                     in_queue = len(self.queues[cashier.unique_id])
-                    # if in_queue > 1 and in_queue <= math.floor(self.queue_length_limit / 2) and (cashier.remaining_life == 0 and self.current_agents < (self.capacity / 3)):
-                    if (in_queue > 1 or in_queue == 0) and len(opened) > self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents < (len(opened) + 1) * self.capacity / self.queue_length_limit:
+                    if cashier.empty_since > 25 or (RIQ_real < 3 and (((RQA > 0.6 or RQA < 0.2) and RIQ > 1.5 and RMQ < 2.5) or RQA == 0)) and in_queue <= 3:
                         self.close_cashier(cashier)
                         opened.remove(cashier)
                         # cashier.set_life(-90)
@@ -297,6 +330,42 @@ class SupermarketModel(Model):
                         opened.remove(cashier)
                         # cashier.set_life(-90)
                         [cashier.set_life(cashier.remaining_life + 25) for cashier in opened]
+
+    # def adjust_cashiers(self):
+    #     opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
+    #     if len(closed) > 0:
+    #         # if len(get_agents_in_phase(self, [AgentPhase.REACHING_QUEUE, AgentPhase.IN_QUEUE])) / len(opened) >= self.queue_length_limit:
+    #         if len(opened) < self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents > (len(opened) + 1) * self.capacity / self.queue_length_limit:
+    #             coin = self.random.randint(0, len(closed) - 1)
+    #             cashier = closed[coin]
+    #             # if cashier.remaining_life == 0:
+    #             cashier.set_life()
+    #             self.open_cashier.add(cashier.unique_id)
+    #             print(Back.WHITE + Fore.GREEN + 'OPENING NEW CASH_REGISTER: {}'.format(cashier.unique_id))
+
+    #     if len(opened) > 1:
+    #         if self.queue_type == QueueType.CLASSIC:
+    #             for cashier in opened:
+    #                 in_queue = len(self.queues[cashier.unique_id])
+    #                 # if in_queue > 1 and in_queue <= math.floor(self.queue_length_limit / 2) and (cashier.remaining_life == 0 and self.current_agents < (self.capacity / 3)):
+    #                 if (in_queue > 1 or in_queue == 0) and len(opened) > self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents < (len(opened) + 1) * self.capacity / self.queue_length_limit:
+    #                     self.close_cashier(cashier)
+    #                     opened.remove(cashier)
+    #                     # cashier.set_life(-90)
+    #                     # [cashier.set_life(cashier.remaining_life + 25) for cashier in opened]
+    #                     break
+
+    #         elif self.queue_type == QueueType.SNAKE:
+    #             if get_avg_queued_agents(self) < math.floor(self.queue_length_limit / 2):
+    #                 to_close = [c for c in opened if c.remaining_life == 0 and self.current_agents < (self.capacity / 3)]
+    #                 if len(to_close) > 0:
+    #                     coin = self.random.randint(0, len(to_close) - 1)
+    #                     cashier = to_close[coin]
+
+    #                     self.close_cashier(cashier)
+    #                     opened.remove(cashier)
+    #                     # cashier.set_life(-90)
+    #                     [cashier.set_life(cashier.remaining_life + 25) for cashier in opened]
 
     def assign_cash_register_to_customer(self):
         available, busy = self.partition(self.cashiers.values(), lambda c: c.open and not c.is_busy)
@@ -319,6 +388,7 @@ class SupermarketModel(Model):
 
     def close_cashier(self, cashier):
         cashier.open = False
+        cashier.empty_since = 0
         self.open_cashier.remove(cashier.unique_id)
         print(Back.WHITE + Fore.RED + 'CLOSING CASH_REGISTER: {}'.format(cashier.unique_id))
 
@@ -335,15 +405,14 @@ class SupermarketModel(Model):
         return agent
 
     def should_spawn_agent(self):
-        pass
         # if self.generated_customers_count > self.capacity * 4:
         #     return False
 
-        # # Current: -\frac{\cos\left(\frac{t\pi}{1200}\right)}{2}+\frac{1}{2}
-        # # Attempt: \frac{1}{16\cos^{2}\left(\pi x\right)+1}
-        # relative_time = self.schedule.steps % self.steps_in_day
-        # prob = (-math.cos(relative_time * np.pi / (self.steps_in_day / 2)) + 1) / 2
-        # return self.random.random() <= 0.3 if self.random.random() <= prob else False
+        # Current: -\frac{\cos\left(\frac{t\pi}{1200}\right)}{2}+\frac{1}{2}
+        # Attempt: \frac{1}{16\cos^{2}\left(\pi x\right)+1}
+        relative_time = self.schedule.steps % self.steps_in_day
+        prob = (-math.cos(relative_time * np.pi / (self.steps_in_day / 2)) + 1) / 2
+        return self.random.random() <= 0.15 if self.random.random() <= prob else False
 
     def ideal_number_of_cashier(self, step):
         prob = (step % self.steps_in_day) / self.steps_in_day
@@ -356,7 +425,7 @@ class SupermarketModel(Model):
             return 4
         if prob <= 0.75 or prob >= 0.25:
             return 5
-        
+
         # if prob <= 0.25 or prob >= 0.85:
         #     return 2
         # if prob <= 0.32 or prob >= 0.81:

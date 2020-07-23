@@ -157,7 +157,16 @@ class ClassicStepStrategy(StepStrategy):
                 self.dequeue()
                 self.model.grid.remove_agent(self.agent)
                 self.model.schedule.remove(self.agent)
-
+                
+                # Update time when removed.
+                self.model.removed_number += 1
+                
+                self.model.removed_agents_steps[AgentPhase.SHOPPING] += self.agent.step_for_phase[AgentPhase.SHOPPING]
+                self.model.removed_agents_steps[AgentPhase.REACHING_QUEUE] += self.agent.step_for_phase[AgentPhase.REACHING_QUEUE]
+                self.model.removed_agents_steps[AgentPhase.IN_QUEUE] += self.agent.step_for_phase[AgentPhase.IN_QUEUE]
+                self.model.removed_agents_steps[AgentPhase.SNAKE_REACHING_CASHIER] += self.agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
+                self.model.removed_agents_steps[AgentPhase.PAYING] += self.agent.step_for_phase[AgentPhase.PAYING]
+                
 
 class SnakeStepStrategy(StepStrategy):
     def step(self):

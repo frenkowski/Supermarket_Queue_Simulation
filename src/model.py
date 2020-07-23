@@ -174,6 +174,16 @@ class SupermarketModel(Model):
         self.finder = IDAStarFinder()
         self.snake_entry = None
         self.snake_exit = None
+        
+        # Report
+        self.removed_number = 0
+        self.removed_agents_steps = {
+            AgentPhase.SHOPPING: 0,
+            AgentPhase.REACHING_QUEUE: 0,
+            AgentPhase.IN_QUEUE: 0,
+            AgentPhase.SNAKE_REACHING_CASHIER: 0,
+            AgentPhase.PAYING: 0,
+        }
 
         # Populate grid from world
         for col, line in enumerate(self.world):
@@ -432,22 +442,32 @@ def get_paying_agents(model):
 
 def get_avg_queued_steps(model):
     """ Count avg number of steps IN_QUEUE. """
-    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.REACHING_QUEUE])
-    agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.REACHING_QUEUE]
-                    for agent in agents]
-    return math.ceil(sum(agents_steps) / len(agents) / 60) if len(agents) != 0 else 0
+    queue_removed_time = model.removed_agents_steps[AgentPhase.IN_QUEUE] + model.removed_agents_steps[AgentPhase.REACHING_QUEUE]
+    return math.ceil(queue_removed_time / model.removed_number / 60) if model.removed_number != 0 else 0
 
 
 def get_avg_total_steps(model):
     """ Count avg number of steps IN_QUEUE. """
-    agents = get_agents_in_phase(model, [AgentPhase.SHOPPING, AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER, AgentPhase.PAYING])
-    agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE]
-                    + agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
-                    + agent.step_for_phase[AgentPhase.SHOPPING]
-                    # + agent.step_for_phase[AgentPhase.REACHING_QUEUE]
-                    + agent.step_for_phase[AgentPhase.PAYING]
-                    for agent in agents]
-    return math.ceil(sum(agents_steps) / len(agents) / 60) if len(agents) != 0 else 0
+    return math.ceil(sum(model.removed_agents_steps.values()) / model.removed_number / 60) if model.removed_number != 0 else 0
+
+# def get_avg_queued_steps(model):
+#     """ Count avg number of steps IN_QUEUE. """
+#     agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.REACHING_QUEUE])
+#     agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.REACHING_QUEUE]
+#                     for agent in agents]
+#     return math.ceil(sum(agents_steps) / len(agents) / 60) if len(agents) != 0 else 0
+
+
+# def get_avg_total_steps(model):
+#     """ Count avg number of steps IN_QUEUE. """
+#     agents = get_agents_in_phase(model, [AgentPhase.SHOPPING, AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER, AgentPhase.PAYING])
+#     agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE]
+#                     + agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
+#                     + agent.step_for_phase[AgentPhase.SHOPPING]
+#                     # + agent.step_for_phase[AgentPhase.REACHING_QUEUE]
+#                     + agent.step_for_phase[AgentPhase.PAYING]
+#                     for agent in agents]
+#     return math.ceil(sum(agents_steps) / len(agents) / 60) if len(agents) != 0 else 0
 
 
 # def get_avg_total_steps(model):

@@ -54,12 +54,12 @@ def agent_portrayal(agent):
             "products": agent.products_count,
             "shopping_time": str(agent.shopping_time),
             "paying_time": str(agent.paying_time),
+            "ID": str(agent.unique_id),
             # "text": agent.unique_id,
             # "text_color": "white"
         }
 
     raise Exception('Undefined render function for agent \'{}\''.format(type(agent)))
-
 
 colorama.init(autoreset=True)
 queue_type = UserSettableParameter('choice', 'Queue Type', value=QueueType.CLASSIC.name,

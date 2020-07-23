@@ -243,8 +243,14 @@ class SupermarketModel(Model):
 
     def step(self):
         self.current_agents = len(self.schedule.agents) - len(self.cashiers.items())
-        if self.current_agents < self.capacity and self.should_spawn_agent():
-            self.schedule.add(self.create_agent())
+        estimated = self.capacity * 4
+        rate = estimated / self.steps_in_day
+        to_spawn = np.random.poisson(rate)
+        print('Entering: ', to_spawn)
+
+        for i in range(to_spawn):
+            if self.current_agents < self.capacity:
+                self.schedule.add(self.create_agent())
 
         self.datacollector.collect(self)
         self.schedule.step()
@@ -329,14 +335,15 @@ class SupermarketModel(Model):
         return agent
 
     def should_spawn_agent(self):
-        if self.generated_customers_count > self.capacity * 4:
-            return False
+        pass
+        # if self.generated_customers_count > self.capacity * 4:
+        #     return False
 
-        # Current: -\frac{\cos\left(\frac{t\pi}{1200}\right)}{2}+\frac{1}{2}
-        # Attempt: \frac{1}{16\cos^{2}\left(\pi x\right)+1}
-        relative_time = self.schedule.steps % self.steps_in_day
-        prob = (-math.cos(relative_time * np.pi / (self.steps_in_day / 2)) + 1) / 2
-        return self.random.random() <= 0.3 if self.random.random() <= prob else False
+        # # Current: -\frac{\cos\left(\frac{t\pi}{1200}\right)}{2}+\frac{1}{2}
+        # # Attempt: \frac{1}{16\cos^{2}\left(\pi x\right)+1}
+        # relative_time = self.schedule.steps % self.steps_in_day
+        # prob = (-math.cos(relative_time * np.pi / (self.steps_in_day / 2)) + 1) / 2
+        # return self.random.random() <= 0.3 if self.random.random() <= prob else False
 
     def ideal_number_of_cashier(self, step):
         prob = (step % self.steps_in_day) / self.steps_in_day

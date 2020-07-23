@@ -48,13 +48,17 @@ def agent_portrayal(agent):
     if isinstance(agent, CustomerAgent):
         return {
             "Shape": "sprite",
-            "sprite": agent.sprite,
             "Filled": "true",
             "Layer": 1,
+            "sprite": agent.sprite,
+            "ID": str(agent.unique_id),
+            "phase": agent.phase.name,
             "products": agent.products_count,
             "shopping_time": str(agent.shopping_time),
             "paying_time": str(agent.paying_time),
-            "ID": str(agent.unique_id),
+            "pos": str(agent.pos),
+            "objective": agent.objective,
+            "destination": str(agent.destination),
             # "text": agent.unique_id,
             # "text_color": "white"
         }
@@ -97,6 +101,7 @@ server = CustomModularServer(
     "Supermarket Model",
     {
         "type": queue_type,
+        "seed": 976284723
     }
 )
 

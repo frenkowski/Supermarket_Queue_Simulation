@@ -101,7 +101,7 @@ server = CustomModularServer(
     "Supermarket Model",
     {
         "type": queue_type,
-        "seed": 976284723
+        "seed": 789932692  # 976284723
     }
 )
 

@@ -90,8 +90,8 @@ class CustomerAgent(Agent):
         self.sprite = sprite
 
         self.products_count = math.floor(get_truncated_normal(mean=self.model.capacity / 2, sd=self.model.capacity / 4, upp=self.model.capacity))
-        self.shopping_time = Counter((3 + self.products_count * 0.75)*60)
-        self.paying_time = Counter((1 + self.products_count * 0.25)*60)
+        self.shopping_time = Counter((3 + self.products_count * 0.75) * 60)
+        self.paying_time = Counter((1 + self.products_count * 0.25) * 60)
 
         self.phase = AgentPhase.SHOPPING
         self.remaining_objective_updates = 2
@@ -255,14 +255,14 @@ class SupermarketModel(Model):
 
         self.cashiers[str(coin)].set_life()
 
-
     def step(self):
         self.current_agents = len(self.schedule.agents) - len(self.cashiers.items())
 
-        if self.schedule.steps > self.steps_in_day:
-            self.running = self.schedule.steps % 250 and get_total_agents(self) == 0
+        if self.schedule.steps > self.steps_in_day and get_total_agents(self) == 0 and (self.schedule.steps - 3) % 250:
+            self.running = False
             return
-        elif self.steps_in_day and self.schedule.steps % 25 == 0 and self.current_agents < self.capacity and self.should_spawn_agent():
+
+        if self.schedule.steps < self.steps_in_day and self.steps_in_day and self.schedule.steps % 25 == 0 and self.current_agents < self.capacity and self.should_spawn_agent():
             self.schedule.add(self.create_agent())
 
         self.datacollector.collect(self)
@@ -286,6 +286,7 @@ class SupermarketModel(Model):
                 print(Back.WHITE + Fore.GREEN + 'OPENING NEW CASH_REGISTER: {}'.format(cashier.unique_id))
 
         if len(opened) > 2:
+            np.random.shuffle(opened)
             if self.queue_type == QueueType.CLASSIC:
                 for cashier in opened:
                     in_queue = len(self.queues[cashier.unique_id])

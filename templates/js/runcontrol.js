@@ -24,7 +24,7 @@ const stepDisplay = document.getElementById("currentStep");
  * @param  {boolean} running=false - Initialize the model in a running state?
  * @param  {boolean} finished=false - Initialize the model in a finished state?
  */
-function ModelController(tick = 0, fps = 3, running = false, finished = false) {
+function ModelController(tick = 0, fps = 100, running = false, finished = false) {
     this.tick = tick;
     this.fps = fps;
     this.running = running;
@@ -64,7 +64,8 @@ function ModelController(tick = 0, fps = 3, running = false, finished = false) {
             this.finished = false;
             startModelButton.firstElementChild.innerText = "Start";
         }
-        clearTimeout(this.timeout)
+        // clearTimeout(this.timeout)
+        window.cancelAnimationFrame(this.timeout)
         send({ type: "reset" });
     }
 
@@ -82,7 +83,8 @@ function ModelController(tick = 0, fps = 3, running = false, finished = false) {
     this.render = function render(data) {
         vizElements.forEach((element, index) => element.render(data[index]))
         if (this.running) {
-            this.timeout = setTimeout(() => this.step(), 1000 / this.fps);
+            // this.timeout = setTimeout(() => this.step(), 1000 / this.fps);
+            this.timeout = window.requestAnimationFrame(this.step.bind(this));
         }
     }
 

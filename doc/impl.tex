@@ -21,5 +21,7 @@ Per semplificare la comprensibilità dello schema, sono stati inclusi esclusivam
 
 \subsection{Strategy Pattern}
 La gestione di due diverse tipologie di coda, a livello implementativo, presenta molte fasi in comune, tuttavia un agente dovrà comportarsi diversamente a seconda della tipologia di coda scelta.
+A tale proposito, si è scelto di implementare il pattern strategy.
 
-A tale proposito, si è scelto di implementare il pattern strategy per ridurre notevolmente la complessità del codice, evitando frequenti controlli rispetto al tipo di coda per determinare il comportamento da attuare.
+La dichiarazione di una classe comune \lstinline{StepStrategy} permette di astrarre i comportamenti dell'agente in sottoclassi esterne allo stesso.
+Questo consente di ridurre notevolmente la complessità del codice isolando i dettagli implementativi del movimento e rende possibile la modifica a runtime del comportamento dell'agente senza la necessità di intervenire manualmente sul codice.

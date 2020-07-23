@@ -9,7 +9,7 @@ from mesa.space import SingleGrid
 from mesa.time import BaseScheduler
 import numpy as np
 from pathfinding.core.grid import Grid
-from pathfinding.finder.a_star import AStarFinder
+from pathfinding.finder.ida_star import IDAStarFinder
 from scipy.spatial import distance
 from scipy.stats import truncnorm
 import seaborn as sns
@@ -66,6 +66,11 @@ class CashRegisterAgent(Agent):
         if self.open:
             self.model.open_cashier.add(self.unique_id)
 
+    @property
+    def serving(self):
+        col, row = self.pos
+        return self.model.grid[col - 1][row] is not None or self.open
+
     def step(self):
         if self.remaining_life > 0:
             self.remaining_life -= 1
@@ -79,8 +84,8 @@ class CustomerAgent(Agent):
         self.sprite = sprite
 
         self.products_count = math.floor(get_truncated_normal(mean=self.model.capacity / 2, sd=self.model.capacity / 4, upp=self.model.capacity))
-        self.shopping_time = Counter(3 + self.products_count * 0.75)
-        self.paying_time = Counter(1 + self.products_count * 0.25)
+        self.shopping_time = Counter((3 + self.products_count * 0.75) * 60)
+        self.paying_time = Counter((1 + self.products_count * 0.25) * 60)
 
         self.phase = AgentPhase.SHOPPING
         self.remaining_objective_updates = 2
@@ -132,7 +137,7 @@ class SupermarketModel(Model):
     def __init__(self, type=QueueType.CLASSIC):
         # Mesa internals
         self.running = True
-        self.steps_in_day = 1440
+        self.steps_in_day = 7200
 
         # World related
         self.queue_type = QueueType[type]
@@ -158,7 +163,7 @@ class SupermarketModel(Model):
         self.open_cashier = set()
 
         # Pathfinding
-        self.finder = AStarFinder()
+        self.finder = IDAStarFinder()
         self.snake_entry = None
         self.snake_exit = None
 
@@ -202,7 +207,17 @@ class SupermarketModel(Model):
 
         self.floor_fields = {}
         for dest_label, (dest_col, dest_row) in self.cash_registers.items():
-            self.floor_fields[dest_label] = self.calculate_floor_field((dest_row, dest_col - 1))
+            floor_field = self.calculate_floor_field((dest_row, dest_col - 1))
+
+            self.floor_fields[dest_label] = floor_field.copy()
+
+            # Save floor field heatmap into file
+            # floor_field[floor_field == np.inf] = -np.inf
+            # plt.figure(figsize=(14, 14))
+            # sns.heatmap(floor_field, vmin=0, fmt='.1f', vmax=np.max(floor_field), annot=True, cbar=False, square=True, cmap='mako', xticklabels=False, yticklabels=False)
+            # plt.tight_layout()
+            # plt.savefig(os.path.join('..', 'output', 'ff-heatmap{}.png'.format(dest_label)))
+            # plt.close()
 
         self.datacollector = DataCollector(
             model_reporters={"Total": get_total_agents,
@@ -210,6 +225,7 @@ class SupermarketModel(Model):
                              "Queued": get_queued_agents,
                              "Queued (AVG)": get_avg_queued_agents,
                              "Queued Time (AVG)": get_avg_queued_steps,
+                             "Total Time (AVG)": get_avg_total_steps,
                              "Paying": get_paying_agents})
 
         if self.queue_type == QueueType.SNAKE:
@@ -257,7 +273,7 @@ class SupermarketModel(Model):
                 for cashier in opened:
                     in_queue = len(self.queues[cashier.unique_id])
                     # if in_queue > 1 and in_queue <= math.floor(self.queue_length_limit / 2) and (cashier.remaining_life == 0 and self.current_agents < (self.capacity / 3)):
-                    if in_queue > 1 and len(opened) > self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents < (len(opened) + 1) * self.capacity / self.queue_length_limit:
+                    if (in_queue > 1 or in_queue == 0) and len(opened) > self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents < (len(opened) + 1) * self.capacity / self.queue_length_limit:
                         self.close_cashier(cashier)
                         opened.remove(cashier)
                         # cashier.set_life(-90)
@@ -313,22 +329,25 @@ class SupermarketModel(Model):
         return agent
 
     def should_spawn_agent(self):
+        if self.generated_customers_count > self.capacity * 4:
+            return False
+
         # Current: -\frac{\cos\left(\frac{t\pi}{1200}\right)}{2}+\frac{1}{2}
         # Attempt: \frac{1}{16\cos^{2}\left(\pi x\right)+1}
         relative_time = self.schedule.steps % self.steps_in_day
         prob = (-math.cos(relative_time * np.pi / (self.steps_in_day / 2)) + 1) / 2
-        return self.random.random() <= prob
+        return self.random.random() <= 0.3 if self.random.random() <= prob else False
 
     def ideal_number_of_cashier(self, step):
         prob = (step % self.steps_in_day) / self.steps_in_day
 
-        if prob <= 0.18 or prob >= 0.90:
+        if prob <= 0.11 or prob >= 0.94:
             return 1
-        if prob <= 0.25 or prob >= 0.83:
+        if prob <= 0.25 or prob >= 0.85:
             return 2
-        if prob <= 0.30 or prob >= 0.72:
+        if prob <= 0.32 or prob >= 0.81:
             return 3
-        if prob <= 0.41 or prob >= 0.62:
+        if prob <= 0.53 or prob >= 0.64:
             return 4
 
         # if prob <= 0.45 or prob >= 0.55:
@@ -369,10 +388,15 @@ def get_queued_agents(model):
     return len(agents_in_queue)
 
 
+def get_working_cashiers(model):
+    return [agent for agent in model.schedule.agents if isinstance(agent, CashRegisterAgent) and agent.serving]
+
+
 def get_avg_queued_agents(model):
     """ Return number avg num of Queued. """
+    working_cashiers = get_working_cashiers(model)
     agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER])
-    return math.ceil(len(agents) / len(model.open_cashier))
+    return math.ceil(len(agents) / len(working_cashiers))
 
 
 def get_total_agents(model):
@@ -392,10 +416,22 @@ def get_paying_agents(model):
 
 def get_avg_queued_steps(model):
     """ Count avg number of steps IN_QUEUE. """
-    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER])
-    agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
+    agents = get_agents_in_phase(model, [AgentPhase.IN_QUEUE, AgentPhase.REACHING_QUEUE])
+    agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE] + agent.step_for_phase[AgentPhase.REACHING_QUEUE]
                     for agent in agents]
-    return math.ceil(sum(agents_steps) / len(agents)) if len(agents) != 0 else 0
+    return math.ceil(sum(agents_steps) / len(agents) / 60) if len(agents) != 0 else 0
+
+
+def get_avg_total_steps(model):
+    """ Count avg number of steps IN_QUEUE. """
+    agents = get_agents_in_phase(model, [AgentPhase.SHOPPING, AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER, AgentPhase.PAYING])
+    agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE]
+                    + agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
+                    + agent.step_for_phase[AgentPhase.SHOPPING]
+                    # + agent.step_for_phase[AgentPhase.REACHING_QUEUE]
+                    + agent.step_for_phase[AgentPhase.PAYING]
+                    for agent in agents]
+    return math.ceil(sum(agents_steps) / len(agents) / 60) if len(agents) != 0 else 0
 
 
 def get_truncated_normal(mean=0, sd=1, low=1, upp=np.inf):

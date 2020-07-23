@@ -40,6 +40,7 @@ var ChartModule = function(series, canvas_width, canvas_height) {
     };
 
     var chartOptions = {
+        animation: 0,
         responsive: true,
         tooltips: {
             mode: 'index',
@@ -79,7 +80,10 @@ var ChartModule = function(series, canvas_width, canvas_height) {
         for (i = 0; i < data.length; i++) {
             chart.data.datasets[i].data.push(data[i]);
         }
-        chart.update();
+
+        if (control.tick % 250 == 0) {
+            chart.update();
+        }
     };
 
     this.reset = function() {

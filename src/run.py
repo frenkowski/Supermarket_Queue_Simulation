@@ -51,6 +51,9 @@ def agent_portrayal(agent):
             "sprite": agent.sprite,
             "Filled": "true",
             "Layer": 1,
+            "products": agent.products_count,
+            "shopping_time": str(agent.shopping_time),
+            "paying_time": str(agent.paying_time),
             # "text": agent.unique_id,
             # "text_color": "white"
         }
@@ -85,9 +88,12 @@ agent_in_queue_chart = ChartModule([{"Label": "Queued", "Color": "#ff8c00"},
 avg_agent_time_in_queue_chart = ChartModule([{"Label": "Queued Time (AVG)", "Color": "#008b8b"}],
                                             data_collector_name='datacollector')
 
+avg_agent_time_chart = ChartModule([{"Label": "Total Time (AVG)", "Color": "#f0725a"}],
+                                   data_collector_name='datacollector')
+
 server = CustomModularServer(
     SupermarketModel,
-    [grid, num_agents_phases_piechart, agent_in_queue_chart, avg_agent_time_in_queue_chart],
+    [grid, num_agents_phases_piechart, agent_in_queue_chart, avg_agent_time_in_queue_chart, avg_agent_time_chart],
     "Supermarket Model",
     {
         "type": queue_type,

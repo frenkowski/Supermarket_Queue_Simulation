@@ -163,7 +163,7 @@ class SupermarketModel(Model):
 
         self.entry_points = []
         self.queues = {}
-        self.queue_length_limit = 6
+        self.queue_length_limit = 7
         self.cashiers = {}
         # TODO: Merge position (cash_registers) and open
         # attribute (open_cashier) with cashiers dict
@@ -276,6 +276,9 @@ class SupermarketModel(Model):
             self.store_heatmap()
 
     def adjust_cashiers(self):
+        # self.current_agents > (len(opened) + 1) * self.capacity / 7
+        # (len(opened) + 1) * self.queue_length_limit / self.current_agents
+
         opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
         if len(closed) > 0:
             if len(opened) < self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents > (len(opened) + 1) * self.capacity / self.queue_length_limit:
@@ -362,7 +365,7 @@ class SupermarketModel(Model):
 
         if prob <= 0.265 or prob >= 0.88:
             return 2
-        if prob <= 0.32 or prob >= 0.75:
+        if prob <= 0.36 or prob >= 0.765:
             return 3
         if prob <= 0.44 or prob >= 0.66:
             return 4
@@ -440,11 +443,11 @@ def get_avg_queued_steps(model):
 
 def get_avg_total_steps(model):
     """ Count avg number of steps IN_QUEUE. """
-    agents = get_agents_in_phase(model, [AgentPhase.SHOPPING, AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER, AgentPhase.PAYING])
+    agents = get_agents_in_phase(model, [AgentPhase.SHOPPING, AgentPhase.REACHING_QUEUE, AgentPhase.IN_QUEUE, AgentPhase.SNAKE_REACHING_CASHIER, AgentPhase.PAYING])
     agents_steps = [agent.step_for_phase[AgentPhase.IN_QUEUE]
                     + agent.step_for_phase[AgentPhase.SNAKE_REACHING_CASHIER]
                     + agent.step_for_phase[AgentPhase.SHOPPING]
-                    # + agent.step_for_phase[AgentPhase.REACHING_QUEUE]
+                    + agent.step_for_phase[AgentPhase.REACHING_QUEUE]
                     + agent.step_for_phase[AgentPhase.PAYING]
                     for agent in agents]
     return math.ceil(sum(agents_steps) / len(agents) / 60) if len(agents) != 0 else 0

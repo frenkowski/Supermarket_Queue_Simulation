@@ -348,14 +348,21 @@ class SupermarketModel(Model):
     def ideal_number_of_cashier(self, step):
         prob = (step % self.steps_in_day) / self.steps_in_day
 
-        if prob <= 0.11 or prob >= 0.94:
-            return 1
-        if prob <= 0.25 or prob >= 0.85:
+        if prob <= 0.125 or prob >= 0.875:
             return 2
-        if prob <= 0.32 or prob >= 0.81:
+        if prob <= 0.25 or prob >= 0.75:
             return 3
-        if prob <= 0.53 or prob >= 0.64:
+        if prob <= 0.375 or prob >= 0.625:
             return 4
+        if prob <= 0.75 or prob >= 0.25:
+            return 5
+        
+        # if prob <= 0.25 or prob >= 0.85:
+        #     return 2
+        # if prob <= 0.32 or prob >= 0.81:
+        #     return 3
+        # if prob <= 0.53 or prob >= 0.64:
+        #     return 4
 
         # if prob <= 0.45 or prob >= 0.55:
         return 5

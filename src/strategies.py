@@ -175,9 +175,6 @@ class SnakeStepStrategy(StepStrategy):
             elif self.agent.phase == AgentPhase.SNAKE_REACHING_CASHIER and self.agent.pos == self.agent.destination:
                 return
 
-            # if self.agent.phase == AgentPhase.SNAKE_REACHING_CASHIER:
-                # self.agent.step_for_phase[self.agent.phase] -= 1
-
             self.model.movement_grid.cleanup()
             start = self.model.movement_grid.node(*self.agent.pos)
             end = self.model.movement_grid.node(*self.agent.destination)

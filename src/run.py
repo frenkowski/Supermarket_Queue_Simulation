@@ -72,7 +72,7 @@ queue_type = UserSettableParameter('choice', 'Queue Type', value=QueueType.CLASS
 with open(os.path.join(os.getcwd(), '..', 'resources', 'map.txt')) as f:
     width, height = map(int, f.readline().strip().split(' '))
 
-tile_size = 24
+tile_size = 16
 terrain_map_name = 'map'
 grid = CanvasGridWithTerrain(agent_portrayal, width, height, terrain_map_name, width * tile_size, height * tile_size)
 

@@ -163,7 +163,7 @@ class SupermarketModel(Model):
 
         self.entry_points = []
         self.queues = {}
-        self.queue_length_limit = 7
+        self.queue_length_limit = 5
         self.cashiers = {}
         # TODO: Merge position (cash_registers) and open
         # attribute (open_cashier) with cashiers dict
@@ -279,7 +279,7 @@ class SupermarketModel(Model):
 
         opened, closed = self.partition(self.cashiers.values(), lambda c: c.open)
         if len(closed) > 0:
-            if len(opened) < self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents > (len(opened) + 1) * self.capacity / self.queue_length_limit:
+            if len(opened) < self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents > (len(opened) + 1) * self.queue_length_limit:
                 coin = self.random.randint(0, len(closed) - 1)
                 cashier = closed[coin]
                 cashier.set_life()
@@ -291,14 +291,14 @@ class SupermarketModel(Model):
             if self.queue_type == QueueType.CLASSIC:
                 for cashier in opened:
                     in_queue = len(self.queues[cashier.unique_id])
-                    if (in_queue > 1 or in_queue == 0) and len(opened) > self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents < (len(opened) + 1) * self.capacity / self.queue_length_limit:
+                    if (in_queue > 1 or in_queue == 0) and len(opened) > self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents < (len(opened) + 1) * self.queue_length_limit:
                         self.close_cashier(cashier)
                         opened.remove(cashier)
                         break
 
             elif self.queue_type == QueueType.SNAKE:
-                if get_avg_queued_agents(self) < math.floor(self.queue_length_limit / 2):
-                    to_close = [c for c in opened if c.remaining_life == 0 and self.current_agents < (self.capacity / 3)]
+                if len(opened) > self.ideal_number_of_cashier(self.schedule.steps) and self.current_agents < (len(opened) + 1) * self.queue_length_limit:
+                    to_close = opened
                     if len(to_close) > 0:
                         coin = self.random.randint(0, len(to_close) - 1)
                         cashier = to_close[coin]

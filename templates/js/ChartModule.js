@@ -42,6 +42,11 @@ var ChartModule = function(series, canvas_width, canvas_height) {
     var chartOptions = {
         animation: 0,
         responsive: true,
+        elements: {
+            point:{
+                radius: 0
+            }
+        },
         tooltips: {
             mode: 'index',
             intersect: false

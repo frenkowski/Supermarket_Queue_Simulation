@@ -1,4 +1,4 @@
-# SupermarketQueue
+# Simulazione e Confronto tra due Tipologie di Coda al Supermercato
 
 ## Team
 Francesco Stranieri (<frenkowski+github@gmail.com>)  

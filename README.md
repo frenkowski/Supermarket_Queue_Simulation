@@ -3,7 +3,7 @@
 ## Team
 Francesco Stranieri (<frenkowski+github@gmail.com>)  
 Davide Marchetti (<dvdmarchetti663+kaggle@gmail.com>)  
-Mattia Vincenzi (<>)  
+Mattia Vincenzi (<vincenzi.mattia97+github@gmail.com>)  
 
 ## Abstract
 Questo progetto si pone l'obiettivo di studiare, e confrontare, le differenze tra le tipologie di code quotidianamente utilizzate all'interno dei supermercati [[1]](#1).
